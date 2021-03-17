@@ -1,0 +1,358 @@
+---
+openapi: 3.0.0
+info:
+  title: API для взаимодействия с STM32MP1
+  description: Данное API чото гдето зочемто нужно, не очень понятно. Но пусть будет, что мешает штоли?
+  version: "1.0"
+servers:
+- url: http://192.168.8.1:8080
+  description: Ethernet connection
+- url: http://192.168.72.1:8080
+  description: WiFi connection
+paths:
+  /sms/modem/info:
+    get:
+      tags:
+      - Sms
+      summary: Запрос «Статус работы модема БУ»
+      operationId: getSmsModemSt
+      responses:
+        "200":
+          description: Состояние модема БУ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp_smsmodemstate'
+  /sms/send:
+    post:
+      tags:
+      - Sms
+      summary: Команда «Отправить СМС сообщение»
+      operationId: setSendSms
+      parameters:
+      - name: phone
+        in: query
+        description: Номер телефона
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      - name: message
+        in: query
+        description: Текстовое сообщение
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Подтверждение отправки СМС сообщения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp_sms'
+  /sms/read:
+    get:
+      tags:
+      - Sms
+      summary: Запрос «Принятые сообщения»
+      operationId: getSmsMessage
+      responses:
+        "200":
+          description: Прочитанное СМС сообщение
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp_sms'
+  /file/elem/add:
+    post:
+      tags:
+      - Files
+      summary: Команда «Добавить запись в файл»
+      operationId: fileAddElem
+      parameters:
+      - name: phone
+        in: query
+        description: Номер телефона
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      - name: name
+        in: query
+        description: Имя пользователя
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Подтверждение добавления записи
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp_file_elem'
+  /file/elem/remove:
+    post:
+      tags:
+      - Files
+      summary: Команда «Удвлить запись из файла»
+      operationId: fileRemoveElem
+      parameters:
+      - name: phone
+        in: query
+        description: Номер телефона
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      - name: name
+        in: query
+        description: Имя пользователя
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Подтверждение удаления записи
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp_file_elem'
+  /file/get:
+    get:
+      tags:
+      - Files
+      summary: Запрос «Файл конфигурации»
+      operationId: getFilePhones
+      responses:
+        "200":
+          description: Файл конфигурации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp_filephones'
+  /file/set:
+    post:
+      tags:
+      - Files
+      summary: Команда «Задать файл конфигурации»
+      operationId: setFilePhones
+      requestBody:
+        $ref: '#/components/requestBodies/filephone'
+      responses:
+        "200":
+          description: Файл конфигурации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/resp_filephones'
+components:
+  schemas:
+    resp_smsmodemstate:
+      title: ResponseModemState
+      type: object
+      properties:
+        results:
+          $ref: '#/components/schemas/resp_smsmodemstate_results'
+        status:
+          type: string
+          description: "Three possible statuses:\n \n* `OK`: No errors occurred. \n* `INVALID_REQUEST`: Some parameters are missing or invalid. \n* `EXECUTE_ERROR`: No or wrong responce from Power Control Block. \n* `UNKNOWN_ERROR`: The request could not be processed due to a server error. The request may succeed if you try again."
+          example: OK
+      example:
+        results:
+          status: 1
+          iccid: 654512325478527
+          imei: 354190023896443
+          phone: 79217773335
+        status: OK
+    resp_sms:
+      title: ResponseSmsRecv
+      type: object
+      properties:
+        results:
+          $ref: '#/components/schemas/resp_sms_results'
+        status:
+          type: string
+          description: "Three possible statuses:\n \n* `OK`: No errors occurred. \n* `INVALID_REQUEST`: Some parameters are missing or invalid. \n* `EXECUTE_ERROR`: No or wrong responce from Power Control Block. \n* `UNKNOWN_ERROR`: The request could not be processed due to a server error. The request may succeed if you try again."
+          example: OK
+    resp_filephones:
+      title: ResponsePhonesFile
+      type: object
+      properties:
+        results:
+          type: array
+          description: Файл конфигурации
+          items:
+            type: string
+        status:
+          type: string
+          description: "Three possible statuses:\n \n* `OK`: No errors occurred. \n* `INVALID_REQUEST`: Some parameters are missing or invalid. \n* `EXECUTE_ERROR`: No or wrong responce from Power Control Block. \n* `UNKNOWN_ERROR`: The request could not be processed due to a server error. The request may succeed if you try again."
+          example: OK
+    resp_smsmodemstate_results:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: Состояние соединения
+          example: 1
+        iccid:
+          type: string
+          description: ICCID сим-карты
+          example: "654512325478527"
+        imei:
+          type: string
+          description: IMEI модема
+          example: "354190023896443"
+        phone:
+          type: string
+          description: Номер телефона
+          example: "79217773335"
+      example:
+        status: 1
+        iccid: 654512325478527
+        imei: 354190023896443
+        phone: 79217773335
+    resp_file_elem:
+      title: ResponseSmsRecv
+      type: object
+      properties:
+        results:
+          $ref: '#/components/schemas/resp_file_elem_results'
+        status:
+          type: string
+          description: "Three possible statuses:\n \n* `OK`: No errors occurred. \n* `INVALID_REQUEST`: Some parameters are missing or invalid. \n* `EXECUTE_ERROR`: No or wrong responce from Power Control Block. \n* `UNKNOWN_ERROR`: The request could not be processed due to a server error. The request may succeed if you try again."
+          example: OK
+    resp_sms_results:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Номер телефона
+          example: "79217773335"
+        message:
+          type: string
+          description: СМС сообщение
+          example: Hello user
+    resp_file_elem_results:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: Номер телефона
+          example: "79217773335"
+        name:
+          type: string
+          description: Имя пользователя
+          example: Васёк
+  parameters:
+    state:
+      name: state
+      in: query
+      description: True для включения, иначе false
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: boolean
+    number:
+      name: number
+      in: query
+      description: Порядковый номер
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: integer
+        format: uint8
+    strval:
+      name: strval
+      in: query
+      description: Строковое значение
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    message:
+      name: message
+      in: query
+      description: Текстовое сообщение
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    iccid:
+      name: iccid
+      in: query
+      description: ICCID выбранной сим-карты
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    imei:
+      name: imei
+      in: query
+      description: IMEI модема
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    user_phone:
+      name: phone
+      in: query
+      description: Номер телефона
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    user_name:
+      name: name
+      in: query
+      description: Имя пользователя
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    file:
+      name: file
+      in: header
+      description: Текстовый файл
+      required: true
+      style: simple
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+  requestBodies:
+    filephone:
+      description: Файл конфигурации
+      content:
+        text/plain:
+          schema:
+            type: array
+            items:
+              type: string
+      required: true
+    phones:
+      description: Разрешенные телефонные номера
+      content:
+        text/plain:
+          schema:
+            type: array
+            items:
+              type: string
+      required: true
