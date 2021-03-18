@@ -29,34 +29,36 @@ func InitProtocol() {
 
 func SendCommand(cmdType uint8, state bool) {
 	// log.Printf("SendCommand\n")
-	var buf [6]byte
+	var buf [7]byte
 
 	buf[0] = cmdType
 	buf[1] = 1
+	buf[2] = 0
 	if state {
-		buf[2] = 1
+		buf[3] = 1
 	}
 
-	crc := crc16.Checksum(buf[:3], table)
-	buf[3] = uint8(crc & 0xff)
-	buf[4] = uint8(crc >> 8)
-	buf[5] = byte('\n')
+	crc := crc16.Checksum(buf[:4], table)
+	buf[4] = uint8(crc & 0xff)
+	buf[5] = uint8(crc >> 8)
+	buf[6] = byte('\n')
 
 	com.Send(buf[:])
 }
 
 func SendShort(cmdType uint8, data byte) {
 	// log.Printf("SendShort\n")
-	var buf [6]byte
+	var buf [7]byte
 
 	buf[0] = cmdType
 	buf[1] = 1
-	buf[2] = data
+	buf[2] = 0
+	buf[3] = data
 
-	crc := crc16.Checksum(buf[:3], table)
-	buf[3] = uint8(crc & 0xff)
-	buf[4] = uint8(crc >> 8)
-	buf[5] = byte('\n')
+	crc := crc16.Checksum(buf[:4], table)
+	buf[4] = uint8(crc & 0xff)
+	buf[5] = uint8(crc >> 8)
+	buf[6] = byte('\n')
 
 	com.Send(buf[:])
 }
@@ -65,18 +67,19 @@ func SendData(cmdType uint8, data []byte) {
 	// log.Printf("SendData\n")
 	var dataLen = len(data)
 
-	var buf = make([]byte, dataLen+5)
+	var buf = make([]byte, dataLen+6)
 
 	buf[0] = cmdType
 	buf[1] = uint8(dataLen)
+	buf[2] = uint8(dataLen >> 8)
 	for i := 0; i < dataLen; i++ {
-		buf[2+i] = data[i]
+		buf[3+i] = data[i]
 	}
 
 	crc := crc16.Checksum(buf[0:len(buf)-3], table)
-	buf[2+dataLen] = uint8(crc & 0xff)
-	buf[3+dataLen] = uint8(crc >> 8)
-	buf[4+dataLen] = byte('\n')
+	buf[3+dataLen] = uint8(crc & 0xff)
+	buf[4+dataLen] = uint8(crc >> 8)
+	buf[5+dataLen] = byte('\n')
 
 	com.Send(buf[:])
 }
@@ -115,10 +118,12 @@ func SendSmsMessage(sms *SmsMessage) {
 }
 
 func recieveHandler(data []byte) {
-	var crcIn uint16
+	var crcIn, length uint16
 	var crc [2]uint8
-	if int(data[1]) != (len(data) - 5) {
-		log.Printf("Wrong length %d (real %d)\n", data[1], (len(data) - 5))
+
+	length = (uint16(data[2]) << 8) + uint16(data[1])
+	if int(length) != (len(data) - 6) {
+		log.Printf("Wrong length %d (real %d)\n", length, (len(data) - 6))
 		return
 	}
 
@@ -155,25 +160,25 @@ func recieveHandler(data []byte) {
 		// log.Printf("CMD_PC_READY\n")
 
 		if FlagHTTPWaitResp == true {
-			HTTPReqChan <- data[2]
+			HTTPReqChan <- data[3]
 			FlagHTTPWaitResp = false
 		}
 		if FlagControlWaitResp == true {
-			ControlReqChan <- data[2]
+			ControlReqChan <- data[3]
 		}
 	case CMD_SEND_SMS:
 		// log.Printf("CMD_SEND_SMS\n")
 
 		if FlagHTTPWaitResp == true {
-			HTTPReqChan <- data[2]
+			HTTPReqChan <- data[3]
 			FlagHTTPWaitResp = false
 		}
 		if FlagControlWaitResp == true {
-			ControlReqChan <- data[2]
+			ControlReqChan <- data[3]
 		}
 	case CMD_REQ_MODEM_INFO:
 		// log.Printf("CMD_REQ_MODEM_INFO\n")
-		var ptr int = 2
+		var ptr int = 3
 
 		ptr++
 		ModemSt.Status = uint8(data[ptr])
@@ -209,7 +214,7 @@ func recieveHandler(data []byte) {
 	case CMD_OUT_SMS:
 		// log.Printf("CMD_OUT_SMS\n")
 
-		var ptr uint8 = 2
+		var ptr uint8 = 3
 		var sms SmsMessage
 
 		sms.Phone = string(data[ptr : ptr+PHONE_SIZE])
