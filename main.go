@@ -11,11 +11,10 @@ package main
 import (
 	"log"
 	"net/http"
-
-	// "os"
 	"time"
 
 	"./control"
+	sw "./go"
 	// WARNING!
 	// Change this to a fully-qualified import path
 	// once you place this file into your project.
@@ -23,9 +22,9 @@ import (
 	//
 	//    sw "github.com/myname/myrepo/go"
 	//
-
-	sw "./go"
 )
+
+var errLog *log.Logger
 
 func main() {
 	// f, errf := os.OpenFile("output.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -33,9 +32,17 @@ func main() {
 	// 	log.Fatalf("Error open log file: %v", errf)
 	// }
 	// defer f.Close()
-	// log.SetOutput(f)
+	// errLog = log.New(f, "", log.Ldate|log.Ltime)
+	// errLog.SetOutput(&lumberjack.Logger{
+	// 	Filename:   "output.log",
+	// 	MaxSize:    1,  // megabytes after which new file is created
+	// 	MaxBackups: 3,  // number of backups
+	// 	MaxAge:     28, // days
+	// })
 
 	log.Printf("Hello programm")
+
+	// control.HttpTest()
 
 	time.Sleep(time.Second)
 	control.InitProtocol()

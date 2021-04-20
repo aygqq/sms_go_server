@@ -34,6 +34,8 @@ var FlagHTTPWaitResp bool = false
 // FlagControlWaitResp - What chanel is in use
 var FlagControlWaitResp bool = false
 
+var dbClearHour int = 4
+
 func waitForResponce() error {
 	var err error
 
@@ -55,13 +57,35 @@ func waitForResponce() error {
 	return err
 }
 
-func carIDCheckFormat(carID string) error {
-	var err error = nil
-	if len(carID) < 10 || len(carID) > 13 {
-		log.Printf("Wrong carID length %d", len(carID))
-		err = errors.New("Wrong carID length")
+// Вызов переданной функции раз в сутки в указанное время.
+func callAt(hour, min, sec int, f func()) error {
+	loc, err := time.LoadLocation("Local")
+	if err != nil {
+		return err
 	}
-	return err
+
+	// Вычисляем время первого запуска.
+	now := time.Now().Local()
+	firstCallTime := time.Date(
+		now.Year(), now.Month(), now.Day(), hour, min, sec, 0, loc)
+	if firstCallTime.Before(now) {
+		// Если получилось время раньше текущего, прибавляем сутки.
+		firstCallTime = firstCallTime.Add(time.Hour * 24)
+	}
+
+	// Вычисляем временной промежуток до запуска.
+	duration := firstCallTime.Sub(time.Now().Local())
+
+	go func() {
+		time.Sleep(duration)
+		for {
+			f()
+			// Следующий запуск через сутки.
+			time.Sleep(time.Hour * 24)
+		}
+	}()
+
+	return nil
 }
 
 func procRecvSms(sms SmsMessage) {
@@ -73,52 +97,46 @@ func procRecvSms(sms SmsMessage) {
 	idx := SearchWhiteListByPhone(sms.Phone)
 	if idx < 0 {
 		log.Printf("Input number %s is not in white list\r\n", sms.Phone)
-		answer.Message = "Ошибка. Вашего номера нет в белом списке."
-		SendSmsMessage(&answer)
 		SmsList.PushBack(&sms)
 		return
 	}
 
-	if strings.HasPrefix(sms.Message, "Добавить: ") {
-		carID := sms.Message[len("Добавить: "):len(sms.Message)]
-		carID = strings.Trim(carID, " ")
-		log.Println("Car number is: ", carID)
+	nPlate := sms.Message[0:len(sms.Message)]
+	nPlate = strings.Trim(nPlate, " ")
+	log.Println("Car number is: ", nPlate)
 
-		err := carIDCheckFormat(carID)
-		if err != nil {
-			log.Println(err)
-			answer.Message = "Ошибка. Неверный формат номера"
-			SendSmsMessage(&answer)
-			return
-		}
-
-		answer.Message = "Номер добавлен в базу на пол часа"
+	nPlate, err := nPlateCheckAndFormat(nPlate)
+	if err != nil {
+		log.Println(err)
+		answer.Message = "Ошибка. Неверный формат номера"
 		SendSmsMessage(&answer)
-	} else if strings.HasPrefix(sms.Message, "Удалить: ") {
-		carID := sms.Message[len("Удалить: "):len(sms.Message)]
-		carID = strings.Trim(carID, " ")
-		log.Println("Car number is: ", carID)
+		return
+	}
 
-		err := carIDCheckFormat(carID)
-		if err != nil {
-			log.Println(err)
-			answer.Message = "Ошибка. Неверный формат номера"
-			SendSmsMessage(&answer)
-			return
-		}
-
-		answer.Message = "Номер удален из базы"
+	if dbSearchAndAddCar(nPlate) {
+		answer.Message = nPlate + " - Въезд разрешен"
 		SendSmsMessage(&answer)
-	} else {
-		answer.Message = "Ошибка. Неверный формат сообщения"
-		SendSmsMessage(&answer)
-		SmsList.PushBack(&sms)
 	}
 }
 
 // ProcStart function
 func ProcStart() error {
-	err := readPhonesFile()
+	if !dbCheckAndCreateGroup(singleGroupName) {
+		FlagControlWaitResp = true
+		SendCommand(CMD_PC_READY, true)
+		waitForResponce()
+		return errors.New("Unable to create group")
+	}
+
+	err := callAt(dbClearHour, 0, 0, regularGroupClear)
+	if err != nil {
+		FlagControlWaitResp = true
+		SendCommand(CMD_PC_READY, true)
+		waitForResponce()
+		return err
+	}
+
+	err = readPhonesFile()
 	if err != nil {
 		log.Printf("Failed to read file: %q\n", err)
 		FlagControlWaitResp = true
