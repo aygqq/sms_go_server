@@ -93,7 +93,7 @@ func transliteEnRu(text string) string {
 
 		rr, ok = enRu[string(r)]
 		if ok {
-			log.Println(rr)
+			// log.Println(rr)
 			output.WriteString(rr)
 		}
 	}

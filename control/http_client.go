@@ -15,53 +15,68 @@ var login string = "mp1"
 var pw string = "1234"
 var pwHash string = fmt.Sprintf("%x", md5.Sum([]byte(pw)))
 
-var addr string = "http://192.168.8.123:8080"
+var addr string = "http://192.168.8.100:8080"
 var auth string = "module=complete&login=" + login + "&password=" + pwHash
 
 var singleGroupID string = ""
 var carNewIdx int = 1
-var singleGroupName string = "Разовый въезд"
+var singleGroupName string = "Открытие шлагбаума"
+var ourExtID string = "mp2_with_macroscop"
 
 func HttpTest() {
-	// dbRemoveAllCars()
-	// time.Sleep(time.Second * 5)
-	// dbCheckAndCreateGroup(singleGroupName)
-	// time.Sleep(time.Second * 5)
+	dbCheckAndCreateGroup(singleGroupName)
 
-	// dbSearchAndAddCar("sr123t78")
-	// dbSearchAndAddCar("vy123a78")
-	// dbSearchAndAddCar("sr782t52")
-	// dbSearchAndAddCar("bn123d34")
-	// dbSearchAndAddCar("kg123i02")
-	// dbSearchAndAddCar("kd123n02")
-	// dbSearchAndAddCar("fg173i06")
-	// dbSearchAndAddCar("eg128b55")
-	// dbSearchAndAddCar("ks176a45")
-	// dbSearchAndAddCar("sf103i92")
-	// dbSearchAndAddCar("ft123k54")
-	// dbSearchAndAddCar("pl123c64")
-	// dbSearchAndAddCar("ok233t74")
-	// dbSearchAndAddCar("op913i84")
-	// dbSearchAndAddCar("sf105i92")
-	// dbSearchAndAddCar("fg128k54")
-	// dbSearchAndAddCar("zl121c64")
-	// dbSearchAndAddCar("oz233t74")
-	// dbSearchAndAddCar("op910z84")
-	// dbSearchAndAddCar("oh567z84")
-	// dbSearchAndAddCar("oh567z84")
+	nPlate, _ := nPlateCheckAndFormat("cy783t198")
+	dbSearchAndAddCar(nPlate)
 
-	// dbSearchAndAddCar("аб567д84")
+	nPlate, _ = nPlateCheckAndFormat("tx756x198")
+	dbSearchAndAddCar(nPlate)
 
+	nPlate, _ = nPlateCheckAndFormat("py385c198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("ka134e198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("ta976k198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("py123c198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("tk797h198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("ka348c198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("be538y198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("be538y198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("to820t198")
+	dbSearchAndAddCar(nPlate)
+
+	nPlate, _ = nPlateCheckAndFormat("ck941x198")
+	dbSearchAndAddCar(nPlate)
+
+	dbGetCarsByExtID()
+	getAllCars()
+
+	// time.Sleep(time.Second)
 	// getAllCars()
 
-	nPlateCheckAndFormat("ay123c047")
-	nPlateCheckAndFormat("bm123h047")
-	nPlateCheckAndFormat("pC123T047")
-	nPlateCheckAndFormat("мХ123К047")
+	dbRemoveCarsByExternalID()
+
+	// time.Sleep(time.Second)
+	dbGetCarsByExtID()
+	getAllCars()
 }
 
 func regularGroupClear() {
-	dbRemoveCarsFromGroup()
+	dbRemoveCarsByExternalID()
 }
 
 func dbCheckAndCreateGroup(grName string) bool {
@@ -70,22 +85,23 @@ func dbCheckAndCreateGroup(grName string) bool {
 
 	for _, group := range groups {
 		gr := group.(map[string]interface{})
-		if gr["name"] == grName {
+		if gr["name"] == grName && gr["open_barrier"] == true {
 			singleGroupID = gr["id"].(string)
-			log.Println("Group is already exists")
+			log.Println("Group is already exists: " + gr["name"].(string))
 			return true
 		}
 	}
+	return false
 
-	singleGroupID = addCarGroup(true, "123", grName)
+	// singleGroupID = addCarGroup(true, "123", grName)
 
-	if singleGroupID == "" {
-		log.Println("Unable to add group")
-		return false
-	} else {
-		log.Println("Group successfully added")
-		return true
-	}
+	// if singleGroupID == "" {
+	// 	log.Println("Unable to add group")
+	// 	return false
+	// } else {
+	// 	log.Println("Group successfully added")
+	// 	return true
+	// }
 }
 
 func dbSearchAndRemoveGroup(grName string) bool {
@@ -117,12 +133,15 @@ func dbSearchAndRemoveGroup(grName string) bool {
 func dbSearchAndAddCar(nPlate string) bool {
 	var plates []interface{} = getCarsByPlate(nPlate, singleGroupID)
 
-	if len(plates) > 0 {
-		log.Println("Car is already in database")
-		return true
+	for _, plate := range plates {
+		onePlate := plate.(map[string]interface{})
+		if onePlate["external_id"] == ourExtID {
+			log.Println("Car is already in database")
+			return true
+		}
 	}
 
-	if addCarToGroup(nPlate, fmt.Sprintf("%d", carNewIdx), singleGroupID) {
+	if addCarToGroup(nPlate, ourExtID, singleGroupID) {
 		log.Printf("Car %d successfully added\n", carNewIdx)
 		carNewIdx++
 		return true
@@ -141,8 +160,9 @@ func dbRemoveAllCars() bool {
 	return true
 }
 
-func dbRemoveCarsFromGroup() bool {
-	cars, totalCount := getCarsByGroup(singleGroupID, 0, 10)
+func dbRemoveCarsByExternalID() bool {
+	cars, totalCount := getCarsByExtID(ourExtID, 0, 10)
+	log.Println(totalCount)
 
 	for _, car := range cars {
 		oneCar := car.(map[string]interface{})
@@ -150,12 +170,34 @@ func dbRemoveCarsFromGroup() bool {
 	}
 
 	for totalCount > 10 {
+		cars, totalCount = getCarsByExtID(ourExtID, 0, 10)
 		log.Println(totalCount)
-		cars, totalCount = getCarsByGroup(singleGroupID, 0, 10)
 		for _, car := range cars {
 			oneCar := car.(map[string]interface{})
 			remCar(oneCar["id"].(string))
 		}
+	}
+	return true
+}
+
+func dbGetCarsFromGroup() bool {
+	var offset int = 0
+	var totalCount int = 10
+
+	for totalCount > offset {
+		_, totalCount = getCarsByGroup(singleGroupID, offset, 10)
+		offset += 10
+	}
+	return true
+}
+
+func dbGetCarsByExtID() bool {
+	var offset int = 0
+	var totalCount int = 10
+
+	for totalCount > offset {
+		_, totalCount = getCarsByExtID(ourExtID, offset, 10)
+		offset += 10
 	}
 	return true
 }
@@ -195,7 +237,7 @@ func getCarGroups() []interface{} {
 		groups := result["groups"].([]interface{})
 		for _, group := range groups {
 			gr := group.(map[string]interface{})
-			log.Printf("%s: id %s, barrier %t", gr["name"], gr["id"], gr["open_barrier"])
+			log.Printf("\t%s: id %s, barrier %t", gr["name"], gr["id"], gr["open_barrier"])
 		}
 		return groups
 	} else {
@@ -276,13 +318,14 @@ func getAllCars() []interface{} {
 	var result map[string]interface{}
 
 	json.Unmarshal(body, &result)
+	// log.Println(result)
 
 	if resp.Status == "200 OK" {
 		log.Println("Cars")
 		plates := result["plates"].([]interface{})
 		for _, plate := range plates {
 			pl := plate.(map[string]interface{})
-			log.Printf("%s, %s\r\n", pl["license_plate_number"], pl["id"])
+			log.Printf("\t%s, %s, %s\r\n", pl["license_plate_number"], pl["id"], pl["external_id"])
 		}
 		return plates
 	} else {
@@ -311,12 +354,44 @@ func getCarsByGroup(groupID string, offset int, portion int) ([]interface{}, int
 
 	if resp.Status == "200 OK" {
 		log.Println("Cars in group " + groupID)
-		log.Println(result["total_count"])
 		totalCount := result["total_count"].(float64)
 		plates := result["plates"].([]interface{})
 		for _, plate := range plates {
 			pl := plate.(map[string]interface{})
-			log.Printf("%s, %s\r\n", pl["license_plate_number"], pl["id"])
+			log.Printf("\t%s, %s\r\n", pl["license_plate_number"], pl["id"])
+		}
+		return plates, int(totalCount)
+	} else {
+		log.Println(result["ErrorMessage"])
+		return nil, 0
+	}
+}
+
+func getCarsByExtID(extID string, offset int, portion int) ([]interface{}, int) {
+	filter := "filter=external_id='" + extID + "'&"
+	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)
+	resp, err := http.Get(addr + "/api/cars?" + count + filter + auth)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	var result map[string]interface{}
+
+	// json.NewDecoder(resp.Body).Decode(&result)
+	json.Unmarshal(body, &result)
+
+	if resp.Status == "200 OK" {
+		log.Println("Cars by external id " + extID)
+		totalCount := result["total_count"].(float64)
+		plates := result["plates"].([]interface{})
+		for _, plate := range plates {
+			pl := plate.(map[string]interface{})
+			log.Printf("\t%s, %s\r\n", pl["license_plate_number"], pl["id"])
 		}
 		return plates, int(totalCount)
 	} else {
@@ -348,7 +423,7 @@ func getCarsByPlate(nPlate string, groupID string) []interface{} {
 		plates := result["plates"].([]interface{})
 		for _, plate := range plates {
 			pl := plate.(map[string]interface{})
-			log.Printf("%s, %s\r\n", pl["license_plate_number"], pl["id"])
+			log.Printf("%s, %s, %s\r\n", pl["license_plate_number"], pl["id"], pl["external_id"])
 		}
 		return plates
 	} else {

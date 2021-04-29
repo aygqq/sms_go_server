@@ -106,17 +106,19 @@ func GetFilePhones(w http.ResponseWriter, r *http.Request) {
 }
 
 func SetFilePhones(w http.ResponseWriter, r *http.Request) {
+	var elem control.ListElement
 	var resp RespFilephones
-
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading body: %v", err)
 	}
 
 	err = json.Unmarshal(body, &resp.Results)
+	control.WhiteList = nil
 	for i := 0; i < len(resp.Results); i++ {
-		control.WhiteList[i].Phone = resp.Results[i][0]
-		control.WhiteList[i].Name = resp.Results[i][1]
+		elem.Phone = resp.Results[i][0]
+		elem.Name = resp.Results[i][1]
+		control.WhiteList = append(control.WhiteList, elem)
 	}
 	control.WritePhonesFile()
 
