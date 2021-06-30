@@ -2,21 +2,29 @@ package control
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
-var login string = "mp1"
-var pw string = "1234"
-var pwHash string = fmt.Sprintf("%x", md5.Sum([]byte(pw)))
+type dbConfig struct {
+	module string
+	login  string
+	pw     string
+	pwHash string
 
-var addr string = "http://192.168.8.100:8080"
-var auth string = "module=complete&login=" + login + "&password=" + pwHash
+	ip   string
+	port string
+	addr string
+
+	auth string
+}
+
+var dbCfg dbConfig
 
 var singleGroupID string = ""
 var carNewIdx int = 1
@@ -25,6 +33,8 @@ var ourExtID string = "mp2_with_macroscop"
 
 func HttpTest() {
 	dbCheckAndCreateGroup(singleGroupName)
+
+	getAllCars()
 
 	nPlate, _ := nPlateCheckAndFormat("cy783t198")
 	dbSearchAndAddCar(nPlate)
@@ -72,6 +82,9 @@ func HttpTest() {
 
 	// time.Sleep(time.Second)
 	dbGetCarsByExtID()
+	getAllCars()
+
+	time.Sleep(30 * time.Second)
 	getAllCars()
 }
 
@@ -130,24 +143,29 @@ func dbSearchAndRemoveGroup(grName string) bool {
 	}
 }
 
-func dbSearchAndAddCar(nPlate string) bool {
-	var plates []interface{} = getCarsByPlate(nPlate, singleGroupID)
+func dbSearchAndAddCar(nPlate string) int {
+	var plates []interface{} = getCarsByPlate(nPlate)
 
-	for _, plate := range plates {
-		onePlate := plate.(map[string]interface{})
-		if onePlate["external_id"] == ourExtID {
-			log.Println("Car is already in database")
-			return true
-		}
+	if len(plates) > 0 {
+		log.Println("Car is already in database")
+		return 2
 	}
+
+	// for _, plate := range plates {
+	// 	onePlate := plate.(map[string]interface{})
+	// 	if onePlate["external_id"] == ourExtID {
+	// 		log.Println("Car is already in database")
+	// 		return 2
+	// 	}
+	// }
 
 	if addCarToGroup(nPlate, ourExtID, singleGroupID) {
 		log.Printf("Car %d successfully added\n", carNewIdx)
 		carNewIdx++
-		return true
+		return 1
 	}
 	log.Println("Unable to add car")
-	return false
+	return 0
 }
 
 func dbRemoveAllCars() bool {
@@ -203,7 +221,7 @@ func dbGetCarsByExtID() bool {
 }
 
 func getCarConfig() {
-	resp, err := http.Get(addr + "/api/carconfig?" + auth)
+	resp, err := http.Get(dbCfg.addr + "/api/carconfig?" + dbCfg.auth)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -219,7 +237,7 @@ func getCarConfig() {
 }
 
 func getCarGroups() []interface{} {
-	resp, err := http.Get(addr + "/api/cars-groups?offset=0&portion=10&" + auth)
+	resp, err := http.Get(dbCfg.addr + "/api/cars-groups?offset=0&portion=10&" + dbCfg.auth)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -260,7 +278,7 @@ func addCarGroup(openBar bool, extID string, name string) string {
 		log.Fatalln(err)
 	}
 
-	resp, err := http.Post(addr+"/api/cars-groups?"+auth, "application/json", bytes.NewBuffer(bytesRepresentation))
+	resp, err := http.Post(dbCfg.addr+"/api/cars-groups?"+dbCfg.auth, "application/json", bytes.NewBuffer(bytesRepresentation))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -279,7 +297,7 @@ func addCarGroup(openBar bool, extID string, name string) string {
 }
 
 func remCarGroup(groupID string) bool {
-	req, err := http.NewRequest(http.MethodDelete, addr+"/api/cars-groups/"+groupID+"?"+auth, nil)
+	req, err := http.NewRequest(http.MethodDelete, dbCfg.addr+"/api/cars-groups/"+groupID+"?"+dbCfg.auth, nil)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -305,7 +323,7 @@ func remCarGroup(groupID string) bool {
 }
 
 func getAllCars() []interface{} {
-	resp, err := http.Get(addr + "/api/cars?offset=0&portion=50&" + auth)
+	resp, err := http.Get(dbCfg.addr + "/api/cars?offset=0&portion=50&" + dbCfg.auth)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -321,7 +339,7 @@ func getAllCars() []interface{} {
 	// log.Println(result)
 
 	if resp.Status == "200 OK" {
-		log.Println("Cars")
+		log.Println("All cars")
 		plates := result["plates"].([]interface{})
 		for _, plate := range plates {
 			pl := plate.(map[string]interface{})
@@ -337,7 +355,7 @@ func getAllCars() []interface{} {
 func getCarsByGroup(groupID string, offset int, portion int) ([]interface{}, int) {
 	filter := "filter=group_id='" + groupID + "'&"
 	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)
-	resp, err := http.Get(addr + "/api/cars?" + count + filter + auth)
+	resp, err := http.Get(dbCfg.addr + "/api/cars?" + count + filter + dbCfg.auth)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -370,7 +388,7 @@ func getCarsByGroup(groupID string, offset int, portion int) ([]interface{}, int
 func getCarsByExtID(extID string, offset int, portion int) ([]interface{}, int) {
 	filter := "filter=external_id='" + extID + "'&"
 	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)
-	resp, err := http.Get(addr + "/api/cars?" + count + filter + auth)
+	resp, err := http.Get(dbCfg.addr + "/api/cars?" + count + filter + dbCfg.auth)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -386,9 +404,9 @@ func getCarsByExtID(extID string, offset int, portion int) ([]interface{}, int) 
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
-		log.Println("Cars by external id " + extID)
 		totalCount := result["total_count"].(float64)
 		plates := result["plates"].([]interface{})
+		log.Printf("Cars by external id: %s, total_count: %f\r\n", extID, totalCount)
 		for _, plate := range plates {
 			pl := plate.(map[string]interface{})
 			log.Printf("\t%s, %s\r\n", pl["license_plate_number"], pl["id"])
@@ -400,9 +418,9 @@ func getCarsByExtID(extID string, offset int, portion int) ([]interface{}, int) 
 	}
 }
 
-func getCarsByPlate(nPlate string, groupID string) []interface{} {
+func getCarsByPlate(nPlate string) []interface{} {
 	filter := "filter=license_plate_number='" + url.QueryEscape(nPlate) + "'&"
-	req, err := http.NewRequest(http.MethodGet, addr+"/api/cars?offset=0&portion=50&"+filter+auth, nil)
+	req, err := http.NewRequest(http.MethodGet, dbCfg.addr+"/api/cars?offset=0&portion=50&"+filter+dbCfg.auth, nil)
 	req.Header.Add("Accept-Charset", "utf-8")
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -419,12 +437,12 @@ func getCarsByPlate(nPlate string, groupID string) []interface{} {
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
-		log.Println("Cars by plate " + nPlate)
+		// log.Println("Cars by plate " + nPlate)
 		plates := result["plates"].([]interface{})
-		for _, plate := range plates {
-			pl := plate.(map[string]interface{})
-			log.Printf("%s, %s, %s\r\n", pl["license_plate_number"], pl["id"], pl["external_id"])
-		}
+		// for _, plate := range plates {
+		// 	pl := plate.(map[string]interface{})
+		// 	log.Printf("%s, %s, %s\r\n", pl["license_plate_number"], pl["id"], pl["external_id"])
+		// }
 		return plates
 	} else {
 		log.Println(result["ErrorMessage"])
@@ -454,7 +472,7 @@ func addCarToGroup(nPlate string, extID string, groupID string) bool {
 		log.Fatalln(err)
 	}
 
-	resp, err := http.Post(addr+"/api/cars?"+auth, "application/json", bytes.NewBuffer(bytesRepresentation))
+	resp, err := http.Post(dbCfg.addr+"/api/cars?"+dbCfg.auth, "application/json", bytes.NewBuffer(bytesRepresentation))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -473,7 +491,7 @@ func addCarToGroup(nPlate string, extID string, groupID string) bool {
 }
 
 func remCar(carID string) bool {
-	req, err := http.NewRequest(http.MethodDelete, addr+"/api/cars/"+carID+"?"+auth, nil)
+	req, err := http.NewRequest(http.MethodDelete, dbCfg.addr+"/api/cars/"+carID+"?"+dbCfg.auth, nil)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {

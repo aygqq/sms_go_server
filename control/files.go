@@ -1,8 +1,10 @@
 package control
 
 import (
+	"crypto/md5"
 	"encoding/csv"
 	"errors"
+	"fmt"
 
 	// "io/ioutil"
 	"log"
@@ -101,6 +103,55 @@ func SearchWhiteListByPhone(phone string) int {
 // 	}
 // 	return nil
 // }
+
+func readConfigFile() error {
+	var cfg dbConfig
+
+	log.Println("readConfigFile")
+
+	csvfile, err := os.Open(configFilePath)
+	if err != nil {
+		return err
+	}
+	defer csvfile.Close()
+
+	// Parse the file
+	r := csv.NewReader(csvfile)
+
+	// Iterate through the records
+	for {
+		// Read each record from csv
+		record, err := r.Read()
+		log.Println(record)
+		if err != nil {
+			break
+		}
+
+		if record[0] == "addr" {
+			cfg.ip = record[1]
+		} else if record[0] == "port" {
+			cfg.port = record[1]
+		} else if record[0] == "module" {
+			cfg.module = record[1]
+		} else if record[0] == "login" {
+			cfg.login = record[1]
+		} else if record[0] == "password" {
+			cfg.pw = record[1]
+		}
+	}
+
+	cfg.addr = "http://" + cfg.ip + ":" + cfg.port
+
+	cfg.pwHash = fmt.Sprintf("%x", md5.Sum([]byte(cfg.pw)))
+	cfg.auth = "module=" + cfg.module + "&login=" + cfg.login + "&password=" + cfg.pwHash
+
+	log.Println(cfg.addr)
+	log.Println(cfg.auth)
+
+	dbCfg = cfg
+
+	return err
+}
 
 func readPhonesFile() error {
 	log.Println("readPhonesFile")

@@ -1,0 +1,2 @@
+
+vi /lib/systemd/network/50-wired.network.all

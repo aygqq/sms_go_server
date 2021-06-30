@@ -113,14 +113,27 @@ func procRecvSms(sms SmsMessage) {
 		return
 	}
 
-	if dbSearchAndAddCar(nPlate) {
+	res := dbSearchAndAddCar(nPlate)
+	if res == 1 {
 		answer.Message = nPlate + " - Въезд разрешен"
+		SendSmsMessage(&answer)
+	} else if res == 2 {
+		answer.Message = nPlate + " - Автомобиль уже существует в базе данных"
 		SendSmsMessage(&answer)
 	}
 }
 
 // ProcStart function
 func ProcStart() error {
+	err := readConfigFile()
+	if err != nil {
+		log.Printf("Failed to read config file: %q\n", err)
+		FlagControlWaitResp = true
+		SendCommand(CMD_PC_READY, true)
+		waitForResponce()
+		return err
+	}
+
 	if !dbCheckAndCreateGroup(singleGroupName) {
 		FlagControlWaitResp = true
 		SendCommand(CMD_PC_READY, true)
@@ -128,7 +141,7 @@ func ProcStart() error {
 		return errors.New("Unable to create group")
 	}
 
-	err := callAt(dbClearHour, 0, 0, regularGroupClear)
+	err = callAt(dbClearHour, 0, 0, regularGroupClear)
 	if err != nil {
 		FlagControlWaitResp = true
 		SendCommand(CMD_PC_READY, true)
@@ -138,7 +151,7 @@ func ProcStart() error {
 
 	err = readPhonesFile()
 	if err != nil {
-		log.Printf("Failed to read file: %q\n", err)
+		log.Printf("Failed to read phones file: %q\n", err)
 		FlagControlWaitResp = true
 		SendCommand(CMD_PC_READY, true)
 		waitForResponce()

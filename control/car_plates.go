@@ -39,16 +39,17 @@ func nPlateCheckAndFormat(nPlate string) (string, error) {
 
 	nPlate = transliteEnRu(nPlate)
 
-	if len(nPlate) != 12 {
-		errStr := fmt.Sprintf("Wrong nPlate length %d", len(nPlate))
+	numLen := len(nPlate)
+	if numLen != 12 && numLen != 11 {
+		errStr := fmt.Sprintf("Wrong nPlate length %d", numLen)
 		err = errors.New(errStr)
 		return nPlate, err
 	}
 
 	bytes := []byte(nPlate)
-	letters := string(bytes[0:4]) + string(bytes[7:9])
-	numbers := string(bytes[4:7])
-	region := string(bytes[9:12])
+	letters := string(bytes[0:2]) + string(bytes[5:9])
+	numbers := string(bytes[2:5])
+	region := string(bytes[9:numLen])
 	log.Printf("Analyse %s, %s, %s\n", letters, numbers, region)
 	if !checkIfNumberString(letters, true) {
 		err = errors.New("Wrong nPlate letters")
@@ -79,7 +80,7 @@ func transliteEnRu(text string) string {
 	var rr string
 	var ok bool
 
-	log.Printf("Translite %s ->\n", input.String())
+	// log.Printf("Translite %s ->\n", input.String())
 	for {
 		r, _, err := input.ReadRune()
 		if err != nil {
@@ -98,7 +99,7 @@ func transliteEnRu(text string) string {
 		}
 	}
 
-	log.Printf("Translite -> %s\n", output.String())
+	// log.Printf("Translite -> %s\n", output.String())
 	return output.String()
 }
 

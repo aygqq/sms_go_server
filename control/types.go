@@ -21,6 +21,7 @@ const (
 	OPERID_SIZE = 5
 
 	phonesFilePath = "phones.csv"
+	configFilePath = "config.csv"
 )
 
 type ListElement struct {
