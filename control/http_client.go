@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"time"
 )
 
 type dbConfig struct {
@@ -26,13 +25,14 @@ type dbConfig struct {
 
 var dbCfg dbConfig
 
-var singleGroupID string = ""
+var ourGroupID string = ""
 var carNewIdx int = 1
-var singleGroupName string = "Открытие шлагбаума"
-var ourExtID string = "mp2_with_macroscop"
+var ourGroupName string = "Временная"
+var ourExtID string = "mp1_with_macroscop"
 
+/*
 func HttpTest() {
-	dbCheckAndCreateGroup(singleGroupName)
+	dbCheckAndCreateGroup(ourGroupName)
 
 	getAllCars()
 
@@ -87,54 +87,56 @@ func HttpTest() {
 	time.Sleep(30 * time.Second)
 	getAllCars()
 }
+*/
 
 func regularGroupClear() {
 	dbRemoveCarsByExternalID()
 }
 
 func dbCheckAndCreateGroup(grName string) bool {
-	singleGroupID = ""
+	ourGroupID = ""
 	var groups []interface{} = getCarGroups()
 
 	for _, group := range groups {
 		gr := group.(map[string]interface{})
 		if gr["name"] == grName && gr["open_barrier"] == true {
-			singleGroupID = gr["id"].(string)
+			ourGroupID = gr["id"].(string)
 			log.Println("Group is already exists: " + gr["name"].(string))
 			return true
 		}
 	}
-	return false
 
-	// singleGroupID = addCarGroup(true, "123", grName)
+	// ourGroupID = addCarGroup(true, grName)
 
-	// if singleGroupID == "" {
+	// if ourGroupID == "" {
 	// 	log.Println("Unable to add group")
 	// 	return false
 	// } else {
 	// 	log.Println("Group successfully added")
 	// 	return true
 	// }
+
+	return false
 }
 
 func dbSearchAndRemoveGroup(grName string) bool {
-	singleGroupID = ""
+	ourGroupID = ""
 	var groups []interface{} = getCarGroups()
 
 	for _, group := range groups {
 		gr := group.(map[string]interface{})
 		if gr["name"] == grName {
-			singleGroupID = gr["id"].(string)
+			ourGroupID = gr["id"].(string)
 			log.Println("Group is exists")
 		}
 	}
 
-	if singleGroupID == "" {
+	if ourGroupID == "" {
 		log.Println("Group is not exists")
 		return true
 	}
 
-	if remCarGroup(singleGroupID) {
+	if remCarGroup(ourGroupID) {
 		log.Println("Group successfully removed")
 		return true
 	} else {
@@ -143,7 +145,7 @@ func dbSearchAndRemoveGroup(grName string) bool {
 	}
 }
 
-func dbSearchAndAddCar(nPlate string) int {
+func dbSearchAndAddCar(user ListElement, nPlate string) int {
 	var plates []interface{} = getCarsByPlate(nPlate)
 
 	if len(plates) > 0 {
@@ -159,7 +161,7 @@ func dbSearchAndAddCar(nPlate string) int {
 	// 	}
 	// }
 
-	if addCarToGroup(nPlate, ourExtID, singleGroupID) {
+	if addCarToGroup(user, nPlate, ourExtID, ourGroupID) {
 		log.Printf("Car %d successfully added\n", carNewIdx)
 		carNewIdx++
 		return 1
@@ -203,7 +205,7 @@ func dbGetCarsFromGroup() bool {
 	var totalCount int = 10
 
 	for totalCount > offset {
-		_, totalCount = getCarsByGroup(singleGroupID, offset, 10)
+		_, totalCount = getCarsByGroup(ourGroupID, offset, 10)
 		offset += 10
 	}
 	return true
@@ -223,13 +225,18 @@ func dbGetCarsByExtID() bool {
 func getCarConfig() {
 	resp, err := http.Get(dbCfg.addr + "/api/carconfig?" + dbCfg.auth)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return
 	}
+	ErrorSt.connBase = false
 
 	log.Println(resp.Status)
 	log.Println(string(body))
@@ -239,13 +246,18 @@ func getCarConfig() {
 func getCarGroups() []interface{} {
 	resp, err := http.Get(dbCfg.addr + "/api/cars-groups?offset=0&portion=10&" + dbCfg.auth)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 
@@ -264,9 +276,9 @@ func getCarGroups() []interface{} {
 	}
 }
 
-func addCarGroup(openBar bool, extID string, name string) string {
+func addCarGroup(openBar bool, name string) string {
 	message := map[string]interface{}{
-		"external_id":  extID,
+		"external_id":  ourExtID,
 		"name":         name,
 		"intercept":    openBar,
 		"open_barrier": openBar,
@@ -275,13 +287,18 @@ func addCarGroup(openBar bool, extID string, name string) string {
 
 	bytesRepresentation, err := json.Marshal(message)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return ""
 	}
 
 	resp, err := http.Post(dbCfg.addr+"/api/cars-groups?"+dbCfg.auth, "application/json", bytes.NewBuffer(bytesRepresentation))
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return ""
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 
@@ -301,13 +318,18 @@ func remCarGroup(groupID string) bool {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return false
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return false
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 
@@ -325,13 +347,18 @@ func remCarGroup(groupID string) bool {
 func getAllCars() []interface{} {
 	resp, err := http.Get(dbCfg.addr + "/api/cars?offset=0&portion=50&" + dbCfg.auth)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 
@@ -357,13 +384,18 @@ func getCarsByGroup(groupID string, offset int, portion int) ([]interface{}, int
 	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)
 	resp, err := http.Get(dbCfg.addr + "/api/cars?" + count + filter + dbCfg.auth)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil, 0
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil, 0
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 
@@ -390,13 +422,18 @@ func getCarsByExtID(extID string, offset int, portion int) ([]interface{}, int) 
 	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)
 	resp, err := http.Get(dbCfg.addr + "/api/cars?" + count + filter + dbCfg.auth)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil, 0
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil, 0
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 
@@ -425,13 +462,18 @@ func getCarsByPlate(nPlate string) []interface{} {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return nil
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 	json.Unmarshal(body, &result)
@@ -450,17 +492,17 @@ func getCarsByPlate(nPlate string) []interface{} {
 	}
 }
 
-func addCarToGroup(nPlate string, extID string, groupID string) bool {
+func addCarToGroup(user ListElement, nPlate string, extID string, groupID string) bool {
 	message := map[string]interface{}{
 		"owner": map[string]string{
-			"first_name":  "",
-			"second_name": "",
-			"third_name":  "",
+			"first_name":  user.Name,
+			"second_name": user.Surname,
+			"third_name":  user.Patronymic,
 		},
 		"external_id":          extID,
 		"license_plate_number": nPlate,
-		"additional_info":      "",
-		"model":                "",
+		"additional_info":      user.AreaNum,
+		"model":                user.Role,
 		"color":                "",
 		"groups": []map[string]string{
 			0: {"id": groupID},
@@ -469,13 +511,18 @@ func addCarToGroup(nPlate string, extID string, groupID string) bool {
 
 	bytesRepresentation, err := json.Marshal(message)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return false
 	}
 
 	resp, err := http.Post(dbCfg.addr+"/api/cars?"+dbCfg.auth, "application/json", bytes.NewBuffer(bytesRepresentation))
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return false
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 
@@ -495,13 +542,18 @@ func remCar(carID string) bool {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return false
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		ErrorSt.connBase = true
+		log.Println(err)
+		return false
 	}
+	ErrorSt.connBase = false
 
 	var result map[string]interface{}
 

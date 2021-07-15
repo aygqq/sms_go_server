@@ -36,6 +36,9 @@ var FlagControlWaitResp bool = false
 
 var dbClearHour int = 4
 
+var blinkMillis time.Duration = 50
+var ErrorSt ErrorStates
+
 func waitForResponce() error {
 	var err error
 
@@ -46,10 +49,12 @@ func waitForResponce() error {
 		if read == 0 {
 			err = errors.New("Wrong response received")
 		}
+		ErrorSt.connM4 = false
 		// log.Printf("Chanel recv %d\n", read)
 	case <-time.After(2 * time.Second):
 		log.Println("No response received")
 		err = errors.New("No response received")
+		ErrorSt.connM4 = true
 	}
 
 	FlagControlWaitResp = false
@@ -88,6 +93,101 @@ func callAt(hour, min, sec int, f func()) error {
 	return nil
 }
 
+func setLedRed(state bool) {
+	if state {
+		err := exec.Command("gpioset", "gpiochip0", "13=0").Run()
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		err := exec.Command("gpioset", "gpiochip0", "13=1").Run()
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
+func setLedGreen(state bool) {
+	if state {
+		err := exec.Command("gpioset", "gpiochip0", "14=0").Run()
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		err := exec.Command("gpioset", "gpiochip0", "14=1").Run()
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
+func blinkRedLedOnce() time.Duration {
+	setLedRed(true)
+	time.Sleep(time.Millisecond * blinkMillis)
+	setLedRed(false)
+	time.Sleep(time.Millisecond * blinkMillis * 2)
+	return blinkMillis * 3
+}
+
+func blinkLedRed() {
+	var delayMs time.Duration = 1000
+	for {
+		if !ErrorSt.connGsm && !ErrorSt.connM4 && !ErrorSt.connBase {
+			setLedGreen(true)
+			setLedRed(false)
+			time.Sleep(time.Second * 5)
+			continue
+		}
+
+		delayMs = 1000
+		if ErrorSt.connGsm {
+			setLedGreen(false)
+			for i := 0; i < 1; i++ {
+				delayMs -= blinkRedLedOnce()
+			}
+			log.Println("Error GSM")
+		}
+		time.Sleep(time.Millisecond * delayMs)
+
+		delayMs = 1000
+		if ErrorSt.connM4 {
+			setLedGreen(false)
+			for i := 0; i < 2; i++ {
+				delayMs -= blinkRedLedOnce()
+			}
+			log.Println("Error M4")
+		}
+		time.Sleep(time.Millisecond * delayMs)
+
+		delayMs = 1000
+		if ErrorSt.connBase {
+			setLedGreen(false)
+			for i := 0; i < 3; i++ {
+				delayMs -= blinkRedLedOnce()
+			}
+			log.Println("Error Database")
+		}
+		time.Sleep(time.Millisecond * delayMs)
+
+		time.Sleep(time.Second * 2)
+	}
+}
+
+func CheckModemState() {
+	for {
+		FlagControlWaitResp = true
+		SendShort(CMD_REQ_MODEM_INFO, 0)
+		waitForResponce()
+
+		if ModemSt.Status != 1 && ModemSt.Status != 5 {
+			ErrorSt.connGsm = true
+		} else {
+			ErrorSt.connGsm = false
+		}
+		time.Sleep(time.Second * 20)
+	}
+}
+
 func procRecvSms(sms SmsMessage) {
 	var answer SmsMessage
 	answer.Phone = sms.Phone
@@ -97,7 +197,7 @@ func procRecvSms(sms SmsMessage) {
 	idx := SearchWhiteListByPhone(sms.Phone)
 	if idx < 0 {
 		log.Printf("Input number %s is not in white list\r\n", sms.Phone)
-		SmsList.PushBack(&sms)
+		// SmsList.PushBack(&sms)
 		return
 	}
 
@@ -113,7 +213,7 @@ func procRecvSms(sms SmsMessage) {
 		return
 	}
 
-	res := dbSearchAndAddCar(nPlate)
+	res := dbSearchAndAddCar(WhiteList[idx], nPlate)
 	if res == 1 {
 		answer.Message = nPlate + " - Въезд разрешен"
 		SendSmsMessage(&answer)
@@ -125,6 +225,11 @@ func procRecvSms(sms SmsMessage) {
 
 // ProcStart function
 func ProcStart() error {
+	go blinkLedRed()
+
+	go CheckModemState()
+	time.Sleep(time.Second)
+
 	err := readConfigFile()
 	if err != nil {
 		log.Printf("Failed to read config file: %q\n", err)
@@ -134,11 +239,14 @@ func ProcStart() error {
 		return err
 	}
 
-	if !dbCheckAndCreateGroup(singleGroupName) {
-		FlagControlWaitResp = true
-		SendCommand(CMD_PC_READY, true)
-		waitForResponce()
-		return errors.New("Unable to create group")
+	for {
+		if !dbCheckAndCreateGroup(ourGroupName) {
+			err = errors.New("Unable to create group")
+		}
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Minute)
 	}
 
 	err = callAt(dbClearHour, 0, 0, regularGroupClear)

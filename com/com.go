@@ -12,11 +12,12 @@ var port *sio.Port
 var callback func([]byte)
 
 // Init function
-func Init(f func([]byte)) {
+func Init(f func([]byte)) error {
 	// устанавливаем соединение
 	porter, err := sio.Open("/dev/ttyRPMSG0", syscall.B115200)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return err
 	}
 	port = porter
 	callback = f
@@ -24,6 +25,7 @@ func Init(f func([]byte)) {
 	// Send([]byte("Test string\n"))
 
 	go comRecv()
+	return nil
 }
 
 // Send - send data to COM
@@ -32,7 +34,8 @@ func Send(data []byte) {
 	// отправляем данные
 	_, err = port.Write(data)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 	log.Printf("Com send: %d", data[0])
 }
@@ -44,7 +47,8 @@ func comRecv() {
 		// получаем данные
 		reply, err := reader.ReadBytes(0xFE)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			continue
 		}
 		log.Printf("Com recv: %d", reply[0])
 		callback(reply)

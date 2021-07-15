@@ -11,6 +11,14 @@ package swagger
 type RespFileElemResults struct {
 	// Номер телефона
 	Phone string `json:"phone"`
+	// Фамилия пользователя
+	Surname string `json:"surname"`
 	// Имя пользователя
 	Name string `json:"name"`
+	// Отчество пользователя
+	Patronymic string `json:"patronymic"`
+	// Группа пользователя
+	Role string `json:"role"`
+	// Номер участка пользователя
+	AreaNum string `json:"area_num"`
 }

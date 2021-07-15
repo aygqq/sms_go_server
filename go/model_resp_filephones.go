@@ -10,7 +10,7 @@ package swagger
 
 type RespFilephones struct {
 	// Файл конфигурации
-	Results [][2]string `json:"results,omitempty"`
+	Results [][6]string `json:"results,omitempty"`
 	// Three possible statuses:   * `OK`: No errors occurred.  * `INVALID_REQUEST`: Some parameters are missing or invalid.  * `EXECUTE_ERROR`: No or wrong responce from Power Control Block.  * `UNKNOWN_ERROR`: The request could not be processed due to a server error. The request may succeed if you try again.
 	Status string `json:"status,omitempty"`
 }

@@ -2,7 +2,7 @@
 openapi: 3.0.0
 info:
   title: API для взаимодействия с STM32MP1
-  description: Данное API чото гдето зочемто нужно, не очень понятно. Но пусть будет, что мешает штоли?
+  description: Данное API позволяет взаимодействовать с STM32MP1
   version: "1.0"
 servers:
 - url: http://192.168.8.1:8080
@@ -81,10 +81,42 @@ paths:
         explode: true
         schema:
           type: string
+      - name: surname
+        in: query
+        description: Фамилия пользователя
+        required: true
+        style: form
+        explode: true
+        schema:
+          type: string
       - name: name
         in: query
         description: Имя пользователя
         required: true
+        style: form
+        explode: true
+        schema:
+          type: string
+      - name: patronymic
+        in: query
+        description: Отчество пользователя
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+      - name: role
+        in: query
+        description: Группа пользователя
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+      - name: area_num
+        in: query
+        description: Номер участка пользователя
+        required: false
         style: form
         explode: true
         schema:
@@ -106,14 +138,6 @@ paths:
       - name: phone
         in: query
         description: Номер телефона
-        required: true
-        style: form
-        explode: true
-        schema:
-          type: string
-      - name: name
-        in: query
-        description: Имя пользователя
         required: true
         style: form
         explode: true
@@ -248,10 +272,26 @@ components:
           type: string
           description: Номер телефона
           example: "79217773335"
+        surname:
+          type: string
+          description: Фамилия пользователя
+          example: Иванов
         name:
           type: string
           description: Имя пользователя
-          example: Васёк
+          example: Иван
+        patronymic:
+          type: string
+          description: Отчество пользователя
+          example: Иванович
+        role:
+          type: string
+          description: Группа пользователя
+          example: Собственник
+        area_num:
+          type: string
+          description: Номер участка пользователя
+          example: "106"
   parameters:
     state:
       name: state
@@ -322,6 +362,42 @@ components:
       in: query
       description: Имя пользователя
       required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    user_surname:
+      name: surname
+      in: query
+      description: Фамилия пользователя
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    user_patronymic:
+      name: patronymic
+      in: query
+      description: Отчество пользователя
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: string
+    user_role:
+      name: role
+      in: query
+      description: Группа пользователя
+      required: false
+      style: form
+      explode: true
+      schema:
+        type: string
+    user_area_num:
+      name: area_num
+      in: query
+      description: Номер участка пользователя
+      required: false
       style: form
       explode: true
       schema:

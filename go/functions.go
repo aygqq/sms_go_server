@@ -79,23 +79,30 @@ func parsePhoneSms(r *http.Request) (string, string, uint8) {
 	return phone, sms, err
 }
 
-func parsePhoneName(r *http.Request) (string, string, uint8) {
-	var phone string
-	var name string
+func parsePhoneName(r *http.Request) (control.ListElement, uint8) {
 	var err uint8
+	var elem control.ListElement
 
 	for k, v := range r.URL.Query() {
 		if k == "phone" {
-			phone = v[0]
-			if len(phone) > control.PHONE_SIZE {
+			elem.Phone = v[0]
+			if len(elem.Phone) > control.PHONE_SIZE {
 				err = 1
 			}
 		} else if k == "name" {
-			name = v[0]
+			elem.Name = v[0]
+		} else if k == "surname" {
+			elem.Surname = v[0]
+		} else if k == "patronymic" {
+			elem.Patronymic = v[0]
+		} else if k == "role" {
+			elem.Role = v[0]
+		} else if k == "area_num" {
+			elem.AreaNum = v[0]
 		}
 	}
 
-	return phone, name, err
+	return elem, err
 }
 
 func waitForResponce(secs int) (string, bool) {
@@ -114,11 +121,13 @@ func waitForResponce(secs int) (string, bool) {
 			ret = false
 		}
 		log.Printf("Chanel recv %d\n", read)
+		// control.ErrorSt.connM4 = false
 		// status = "OK"
 		// ret = true
 	case <-time.After(time.Duration(secs) * time.Second):
 		log.Println("No response received")
 		status = "EXECUTE_ERROR"
+		// control.ErrorSt.connM4 = true
 		ret = false
 	}
 	control.FlagHTTPWaitResp = false

@@ -25,8 +25,12 @@ const (
 )
 
 type ListElement struct {
-	Phone string `json:"phone,omitempty"`
-	Name  string `json:"name,omitempty"`
+	Phone      string `json:"phone,omitempty"`
+	Surname    string `json:"surname,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Patronymic string `json:"patronymic,omitempty"`
+	Role       string `json:"role,omitempty"`
+	AreaNum    string `json:"area_num,omitempty"`
 }
 
 type FilePhones struct {
@@ -43,4 +47,10 @@ type ModemState struct {
 	Phone  string // Current phone number
 	Iccid  string // ICCID of current sim-card
 	Imei   string // IMEI of modem
+}
+
+type ErrorStates struct {
+	connGsm  bool
+	connM4   bool
+	connBase bool
 }

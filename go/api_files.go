@@ -22,18 +22,19 @@ func FileAddElem(w http.ResponseWriter, r *http.Request) {
 	var res RespFileElemResults
 	var resp RespFileElem
 
-	phone, name, err := parsePhoneName(r)
-
-	var elem control.ListElement
+	elem, err := parsePhoneName(r)
 
 	if err == 0 {
-		elem.Phone = phone
-		elem.Name = name
-		log.Printf("Name %s, Phone %s", name, phone)
+		log.Printf("Name %s, Phone %s", elem.Name, elem.Phone)
 		ret := control.AddToWhiteList(elem)
 		if ret == nil {
-			res.Phone = phone
-			res.Name = name
+			res.Phone = elem.Phone
+			res.Surname = elem.Surname
+			res.Name = elem.Name
+			res.Patronymic = elem.Patronymic
+			res.Role = elem.Role
+			res.AreaNum = elem.AreaNum
+
 			resp.Results = &res
 			resp.Status = "OK"
 		} else {
@@ -56,18 +57,19 @@ func FileRemoveElem(w http.ResponseWriter, r *http.Request) {
 	var res RespFileElemResults
 	var resp RespFileElem
 
-	phone, name, err := parsePhoneName(r)
-
-	var elem control.ListElement
+	elem, err := parsePhoneName(r)
 
 	if err == 0 {
-		elem.Phone = phone
-		elem.Name = name
-		idx := control.SearchWhiteList(elem)
-		ret := control.RemFromWhiteListIdx(idx)
+		idx := control.SearchWhiteListByPhone(elem.Phone)
+		remElem, ret := control.RemFromWhiteListIdx(idx)
 		if ret == nil {
-			res.Phone = phone
-			res.Name = name
+			res.Phone = remElem.Phone
+			res.Surname = remElem.Surname
+			res.Name = remElem.Name
+			res.Patronymic = remElem.Patronymic
+			res.Role = remElem.Role
+			res.AreaNum = remElem.AreaNum
+
 			resp.Results = &res
 			resp.Status = "OK"
 		} else {
@@ -89,10 +91,14 @@ func FileRemoveElem(w http.ResponseWriter, r *http.Request) {
 func GetFilePhones(w http.ResponseWriter, r *http.Request) {
 	var resp RespFilephones
 
-	resp.Results = make([][2]string, len(control.WhiteList))
+	resp.Results = make([][6]string, len(control.WhiteList))
 	for i := 0; i < len(control.WhiteList); i++ {
 		resp.Results[i][0] = control.WhiteList[i].Phone
-		resp.Results[i][1] = control.WhiteList[i].Name
+		resp.Results[i][1] = control.WhiteList[i].Surname
+		resp.Results[i][2] = control.WhiteList[i].Name
+		resp.Results[i][3] = control.WhiteList[i].Patronymic
+		resp.Results[i][4] = control.WhiteList[i].Role
+		resp.Results[i][5] = control.WhiteList[i].AreaNum
 	}
 
 	resp.Status = "OK"
@@ -117,7 +123,11 @@ func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 	control.WhiteList = nil
 	for i := 0; i < len(resp.Results); i++ {
 		elem.Phone = resp.Results[i][0]
-		elem.Name = resp.Results[i][1]
+		elem.Surname = resp.Results[i][1]
+		elem.Name = resp.Results[i][2]
+		elem.Patronymic = resp.Results[i][3]
+		elem.Role = resp.Results[i][4]
+		elem.AreaNum = resp.Results[i][5]
 		control.WhiteList = append(control.WhiteList, elem)
 	}
 	control.WritePhonesFile()

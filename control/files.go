@@ -48,6 +48,11 @@ func checkPhonesFile() error {
 
 func AddToWhiteList(elem ListElement) error {
 	// TODO: Check if exists
+	idx := SearchWhiteListByPhone(elem.Phone)
+	if idx != -1 {
+		err := errors.New("Element with yhis phone is already exists")
+		return err
+	}
 	WhiteList = append(WhiteList, elem)
 	err := WritePhonesFile()
 	if err != nil {
@@ -57,27 +62,33 @@ func AddToWhiteList(elem ListElement) error {
 	return nil
 }
 
-func RemFromWhiteListIdx(idx int) error {
+func RemFromWhiteListIdx(idx int) (ListElement, error) {
+	var elem ListElement
 	if idx < 0 || idx >= len(WhiteList) {
 		err := errors.New("No such element in the list")
-		return err
+		return elem, err
 	}
+	elem = WhiteList[idx]
 	WhiteList[idx] = WhiteList[len(WhiteList)-1]
 	WhiteList[len(WhiteList)-1].Name = ""
 	WhiteList[len(WhiteList)-1].Phone = ""
+	WhiteList[len(WhiteList)-1].Surname = ""
+	WhiteList[len(WhiteList)-1].Patronymic = ""
+	WhiteList[len(WhiteList)-1].Role = ""
+	WhiteList[len(WhiteList)-1].AreaNum = ""
 	WhiteList = WhiteList[:len(WhiteList)-1]
 
 	err := WritePhonesFile()
 	if err != nil {
-		return err
+		return elem, err
 	}
 
-	return nil
+	return elem, nil
 }
 
 func SearchWhiteList(elem ListElement) int {
 	for i := 0; i < len(WhiteList); i++ {
-		if WhiteList[i].Name == elem.Name && WhiteList[i].Phone == elem.Phone {
+		if WhiteList[i] == elem {
 			return i
 		}
 	}
@@ -172,12 +183,16 @@ func readPhonesFile() error {
 		// Read each record from csv
 		record, err := r.Read()
 		log.Println(record)
-		if err != nil {
+		if err != nil || len(record) != 6 {
 			break
 		}
 
 		elem.Phone = record[0]
-		elem.Name = record[1]
+		elem.Surname = record[1]
+		elem.Name = record[2]
+		elem.Patronymic = record[3]
+		elem.Role = record[4]
+		elem.AreaNum = record[5]
 
 		WhiteList = append(WhiteList, elem)
 	}
@@ -186,7 +201,7 @@ func readPhonesFile() error {
 }
 
 func WritePhonesFile() error {
-	var record [2]string
+	var record [6]string
 
 	err := checkPhonesFile()
 	if err != nil {
@@ -203,7 +218,11 @@ func WritePhonesFile() error {
 
 	for i := 0; i < len(WhiteList); i++ {
 		record[0] = WhiteList[i].Phone
-		record[1] = WhiteList[i].Name
+		record[1] = WhiteList[i].Surname
+		record[2] = WhiteList[i].Name
+		record[3] = WhiteList[i].Patronymic
+		record[4] = WhiteList[i].Role
+		record[5] = WhiteList[i].AreaNum
 
 		err := w.Write(record[:])
 		if err != nil {

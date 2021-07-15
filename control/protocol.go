@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"log"
 	"strings"
+	"time"
 
 	// "strings"
 
@@ -19,7 +20,13 @@ var table *crc16.Table
 func InitProtocol() {
 	log.Printf("Init protocol\n")
 
-	com.Init(recieveHandler)
+	for {
+		err := com.Init(recieveHandler)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Second * 20)
+	}
 
 	SmsList = list.New()
 
