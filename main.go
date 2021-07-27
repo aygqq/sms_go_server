@@ -11,10 +11,12 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"./control"
 	sw "./go"
+	"github.com/natefinch/lumberjack"
 	// WARNING!
 	// Change this to a fully-qualified import path
 	// once you place this file into your project.
@@ -24,21 +26,19 @@ import (
 	//
 )
 
-var errLog *log.Logger
-
 func main() {
-	// f, errf := os.OpenFile("output.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	// if errf != nil {
-	// 	log.Fatalf("Error open log file: %v", errf)
-	// }
-	// defer f.Close()
-	// errLog = log.New(f, "", log.Ldate|log.Ltime)
-	// errLog.SetOutput(&lumberjack.Logger{
-	// 	Filename:   "output.log",
-	// 	MaxSize:    1,  // megabytes after which new file is created
-	// 	MaxBackups: 3,  // number of backups
-	// 	MaxAge:     28, // days
-	// })
+	f, errf := os.OpenFile("output.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if errf != nil {
+		log.Fatalf("Error open log file: %v", errf)
+	}
+	defer f.Close()
+
+	log.SetOutput(&lumberjack.Logger{
+		Filename:   "output.log",
+		MaxSize:    1,  // megabytes after which new file is created
+		MaxBackups: 3,  // number of backups
+		MaxAge:     28, // days
+	})
 
 	log.Printf("Hello programm")
 
@@ -47,9 +47,9 @@ func main() {
 	time.Sleep(time.Second)
 	control.InitProtocol()
 
-	control.ProcStart()
-
 	log.Printf("Server started")
 	router := sw.NewRouter()
-	log.Fatal(http.ListenAndServe(":8080", router))
+	go http.ListenAndServe(":8080", router)
+
+	control.ProcStart()
 }

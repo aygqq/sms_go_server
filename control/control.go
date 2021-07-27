@@ -125,8 +125,8 @@ func blinkRedLedOnce() time.Duration {
 	setLedRed(true)
 	time.Sleep(time.Millisecond * blinkMillis)
 	setLedRed(false)
-	time.Sleep(time.Millisecond * blinkMillis * 2)
-	return blinkMillis * 3
+	time.Sleep(time.Millisecond * blinkMillis * 3)
+	return blinkMillis * 4
 }
 
 func blinkLedRed() {
@@ -239,24 +239,6 @@ func ProcStart() error {
 		return err
 	}
 
-	for {
-		if !dbCheckAndCreateGroup(ourGroupName) {
-			err = errors.New("Unable to create group")
-		}
-		if err == nil {
-			break
-		}
-		time.Sleep(time.Minute)
-	}
-
-	err = callAt(dbClearHour, 0, 0, regularGroupClear)
-	if err != nil {
-		FlagControlWaitResp = true
-		SendCommand(CMD_PC_READY, true)
-		waitForResponce()
-		return err
-	}
-
 	err = readPhonesFile()
 	if err != nil {
 		log.Printf("Failed to read phones file: %q\n", err)
@@ -276,6 +258,24 @@ func ProcStart() error {
 	}
 
 	WritePhonesFile()
+
+	for {
+		if !dbCheckAndCreateGroup(ourGroupName) {
+			err = errors.New("Unable to create group")
+		}
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Minute)
+	}
+
+	err = callAt(dbClearHour, 0, 0, regularGroupClear)
+	if err != nil {
+		FlagControlWaitResp = true
+		SendCommand(CMD_PC_READY, true)
+		waitForResponce()
+		return err
+	}
 
 	FlagControlWaitResp = true
 	SendCommand(CMD_PC_READY, true)

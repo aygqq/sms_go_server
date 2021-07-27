@@ -106,15 +106,15 @@ func dbCheckAndCreateGroup(grName string) bool {
 		}
 	}
 
-	// ourGroupID = addCarGroup(true, grName)
+	ourGroupID = addCarGroup(true, grName)
 
-	// if ourGroupID == "" {
-	// 	log.Println("Unable to add group")
-	// 	return false
-	// } else {
-	// 	log.Println("Group successfully added")
-	// 	return true
-	// }
+	if ourGroupID == "" {
+		log.Println("Unable to add group")
+		return false
+	} else {
+		log.Println("Group successfully added")
+		return true
+	}
 
 	return false
 }

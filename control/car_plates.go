@@ -39,6 +39,13 @@ func nPlateCheckAndFormat(nPlate string) (string, error) {
 
 	nPlate = transliteEnRu(nPlate)
 
+	// msgLen := len(nPlate)
+	// if msgLen < 11 {
+	// 	errStr := fmt.Sprintf("Wrong nPlate length %d", msgLen)
+	// 	err = errors.New(errStr)
+	// 	return nPlate, err
+	// }
+
 	numLen := len(nPlate)
 	if numLen != 12 && numLen != 11 {
 		errStr := fmt.Sprintf("Wrong nPlate length %d", numLen)
