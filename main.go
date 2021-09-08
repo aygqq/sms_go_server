@@ -47,9 +47,9 @@ func main() {
 	time.Sleep(time.Second)
 	control.InitProtocol()
 
+	control.ProcStart()
+
 	log.Printf("Server started")
 	router := sw.NewRouter()
-	go http.ListenAndServe(":8080", router)
-
-	control.ProcStart()
+	http.ListenAndServe(":8080", router)
 }

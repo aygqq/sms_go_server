@@ -27,7 +27,7 @@ var dbCfg dbConfig
 
 var ourGroupID string = ""
 var carNewIdx int = 1
-var ourGroupName string = "Временная"
+var ourGroupName string = "РАЗОВЫЙ"
 var ourExtID string = "mp1_with_macroscop"
 
 /*
