@@ -31,6 +31,7 @@ func nPlateCheckAndFormat(nPlate string) (string, error) {
 	var err error = nil
 
 	nPlate = strings.ToUpper(nPlate)
+	nPlate = strings.ReplaceAll(nPlate, " ", "")
 
 	if !checkPlateChars(nPlate) {
 		err = errors.New("Wrong nPlate characters")

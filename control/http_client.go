@@ -115,8 +115,6 @@ func dbCheckAndCreateGroup(grName string) bool {
 		log.Println("Group successfully added")
 		return true
 	}
-
-	return false
 }
 
 func dbSearchAndRemoveGroup(grName string) bool {

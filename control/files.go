@@ -154,7 +154,8 @@ func readConfigFile() error {
 	cfg.addr = "http://" + cfg.ip + ":" + cfg.port
 
 	cfg.pwHash = fmt.Sprintf("%x", md5.Sum([]byte(cfg.pw)))
-	cfg.auth = "module=" + cfg.module + "&login=" + cfg.login + "&password=" + cfg.pwHash
+	// cfg.auth = "module=" + cfg.module + "&login=" + cfg.login + "&password=" + cfg.pwHash
+	cfg.auth = "login=" + cfg.login + "&password=" + cfg.pwHash
 
 	log.Println(cfg.addr)
 	log.Println(cfg.auth)
