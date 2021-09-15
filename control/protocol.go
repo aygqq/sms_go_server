@@ -130,7 +130,7 @@ func recieveHandler(data []byte) {
 
 	length = (uint16(data[2]) << 8) + uint16(data[1])
 	if int(length) != (len(data) - 6) {
-		log.Printf("Wrong length %d (real %d)\n", length, (len(data) - 6))
+		log.Printf("M4: Wrong length %d (real %d)\n", length, (len(data) - 6))
 		return
 	}
 
@@ -151,7 +151,7 @@ func recieveHandler(data []byte) {
 	crcIn += uint16(data[len(data)-3])
 
 	if crcPkt != crcIn {
-		log.Printf("Bad crc16 0x%X 0x%X\n", crcPkt, crcIn)
+		log.Printf("M4: Bad crc16 0x%X 0x%X\n", crcPkt, crcIn)
 		return
 	}
 	// log.Printf("recv: ")
@@ -236,6 +236,6 @@ func recieveHandler(data []byte) {
 		//! sms may be cleared after end of function (make(sms, 1))
 		// SmsList.PushBack(&sms)
 	default:
-		log.Println("Unknown command")
+		log.Println("M4: Unknown command")
 	}
 }

@@ -37,7 +37,6 @@ func Send(data []byte) {
 		log.Println(err)
 		return
 	}
-	log.Printf("Com send: %d", data[0])
 }
 
 func comRecv() {
@@ -50,7 +49,6 @@ func comRecv() {
 			log.Println(err)
 			continue
 		}
-		log.Printf("Com recv: %d", reply[0])
 		callback(reply)
 	}
 }

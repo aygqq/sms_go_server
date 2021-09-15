@@ -168,6 +168,7 @@ func dbSearchAndAddCar(user ListElement, nPlate string) int {
 	return 0
 }
 
+// Debug func
 func dbRemoveAllCars() bool {
 	cars := getAllCars()
 
@@ -198,6 +199,7 @@ func dbRemoveCarsByExternalID() bool {
 	return true
 }
 
+// Debug func
 func dbGetCarsFromGroup() bool {
 	var offset int = 0
 	var totalCount int = 10
@@ -209,6 +211,7 @@ func dbGetCarsFromGroup() bool {
 	return true
 }
 
+// Debug func
 func dbGetCarsByExtID() bool {
 	var offset int = 0
 	var totalCount int = 10
@@ -220,6 +223,7 @@ func dbGetCarsByExtID() bool {
 	return true
 }
 
+// Not in use yet
 func getCarConfig() {
 	resp, err := http.Get(dbCfg.addr + "/api/carconfig?" + dbCfg.auth)
 	if err != nil {
@@ -278,9 +282,9 @@ func addCarGroup(openBar bool, name string) string {
 	message := map[string]interface{}{
 		"external_id":  ourExtID,
 		"name":         name,
-		"intercept":    openBar,
+		"intercept":    false,
 		"open_barrier": openBar,
-		"color":        "00ffff00",
+		"color":        "008b00ff",
 	}
 
 	bytesRepresentation, err := json.Marshal(message)
@@ -342,6 +346,7 @@ func remCarGroup(groupID string) bool {
 	}
 }
 
+// Debug func
 func getAllCars() []interface{} {
 	resp, err := http.Get(dbCfg.addr + "/api/cars?offset=0&portion=50&" + dbCfg.auth)
 	if err != nil {
@@ -377,6 +382,7 @@ func getAllCars() []interface{} {
 	}
 }
 
+// Not in use yet
 func getCarsByGroup(groupID string, offset int, portion int) ([]interface{}, int) {
 	filter := "filter=group_id='" + groupID + "'&"
 	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)

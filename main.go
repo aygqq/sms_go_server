@@ -36,8 +36,8 @@ func main() {
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   "output.log",
 		MaxSize:    1,  // megabytes after which new file is created
-		MaxBackups: 3,  // number of backups
-		MaxAge:     28, // days
+		MaxBackups: 40, // number of backups
+		MaxAge:     31, // days
 	})
 
 	log.Printf("Hello programm")

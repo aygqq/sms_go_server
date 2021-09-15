@@ -38,6 +38,7 @@ var dbClearHour int = 4
 
 var blinkMillis time.Duration = 50
 var ErrorSt ErrorStates
+var prevErr ErrorStates
 
 func waitForResponce() error {
 	var err error
@@ -47,13 +48,13 @@ func waitForResponce() error {
 	select {
 	case read := <-ControlReqChan:
 		if read == 0 {
-			err = errors.New("Wrong response received")
+			err = errors.New("M4: Wrong response received")
 		}
 		ErrorSt.connM4 = false
 		// log.Printf("Chanel recv %d\n", read)
 	case <-time.After(2 * time.Second):
-		log.Println("No response received")
-		err = errors.New("No response received")
+		log.Println("M4: No response received")
+		err = errors.New("M4: No response received")
 		ErrorSt.connM4 = true
 	}
 
@@ -145,7 +146,10 @@ func blinkLedRed() {
 			for i := 0; i < 1; i++ {
 				delayMs -= blinkRedLedOnce()
 			}
-			log.Println("Error GSM")
+			if prevErr.connGsm != ErrorSt.connGsm {
+				log.Println("Error GSM")
+			}
+			prevErr.connGsm = ErrorSt.connGsm
 		}
 		time.Sleep(time.Millisecond * delayMs)
 
@@ -155,7 +159,10 @@ func blinkLedRed() {
 			for i := 0; i < 2; i++ {
 				delayMs -= blinkRedLedOnce()
 			}
-			log.Println("Error M4")
+			if prevErr.connM4 != ErrorSt.connM4 {
+				log.Println("Error M4")
+			}
+			prevErr.connM4 = ErrorSt.connM4
 		}
 		time.Sleep(time.Millisecond * delayMs)
 
@@ -165,7 +172,10 @@ func blinkLedRed() {
 			for i := 0; i < 3; i++ {
 				delayMs -= blinkRedLedOnce()
 			}
-			log.Println("Error Database")
+			if prevErr.connBase != ErrorSt.connBase {
+				log.Println("Error Database")
+			}
+			prevErr.connBase = ErrorSt.connBase
 		}
 		time.Sleep(time.Millisecond * delayMs)
 
@@ -203,6 +213,7 @@ func procRecvSms(sms SmsMessage) {
 
 	nPlate := sms.Message[0:len(sms.Message)]
 	nPlate = strings.Trim(nPlate, " ")
+	nPlate = strings.ReplaceAll(nPlate, " ", "")
 	log.Println("Car number is: ", nPlate)
 
 	nPlate, err := nPlateCheckAndFormat(nPlate)

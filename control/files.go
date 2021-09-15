@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"strings"
 
 	// "io/ioutil"
 	"log"
@@ -37,6 +38,10 @@ func checkPhone(str string) error {
 
 func checkPhonesFile() error {
 	for i := 0; i < len(WhiteList); i++ {
+		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, " ", "")
+		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, "-", "")
+		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, "(", "")
+		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, ")", "")
 		err := checkPhone(WhiteList[i].Phone)
 		if err != nil {
 			return err
@@ -105,15 +110,6 @@ func SearchWhiteListByPhone(phone string) int {
 
 	return -1
 }
-
-// func GetPhonesFile(records *[]ListElement) error {
-// 	log.Println("GetPhonesFile")
-// 	for i := 0; i < len(WhiteList); i++ {
-// 		records[i].Name = WhiteList[i].Name
-// 		records[i].Name = WhiteList[i].Name
-// 	}
-// 	return nil
-// }
 
 func readConfigFile() error {
 	var cfg dbConfig
@@ -230,12 +226,13 @@ func WritePhonesFile() error {
 			return err
 		}
 	}
+	log.Println("Phones file has been written")
 
 	return nil
 }
 
 func deleteFile(path string) error {
-	log.Println("Deleting config file")
+	log.Println("Deleting file")
 
 	return os.Remove(path)
 }
