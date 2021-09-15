@@ -18,6 +18,8 @@ import (
 	"../control"
 )
 
+var newList []control.ListElement = make([]control.ListElement, 0, 50)
+
 func FileAddElem(w http.ResponseWriter, r *http.Request) {
 	var res RespFileElemResults
 	var resp RespFileElem
@@ -120,7 +122,7 @@ func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = json.Unmarshal(body, &resp.Results)
-	control.WhiteList = nil
+	newList = nil
 	for i := 0; i < len(resp.Results); i++ {
 		elem.Phone = resp.Results[i][0]
 		elem.Surname = resp.Results[i][1]
@@ -128,9 +130,16 @@ func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 		elem.Patronymic = resp.Results[i][3]
 		elem.Role = resp.Results[i][4]
 		elem.AreaNum = resp.Results[i][5]
-		control.WhiteList = append(control.WhiteList, elem)
+		newList = append(newList, elem)
 	}
-	control.WritePhonesFile()
+	err = control.WritePhonesFile(&newList)
+	if err != nil {
+		log.Printf("Failed to write file: %q\n", err)
+		control.WritePhonesFile(&control.WhiteList)
+	} else {
+		control.ReadPhonesFile()
+	}
+	newList = nil
 
 	resp.Status = "OK"
 

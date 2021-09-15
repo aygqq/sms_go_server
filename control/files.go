@@ -36,13 +36,13 @@ func checkPhone(str string) error {
 	return nil
 }
 
-func checkPhonesFile() error {
-	for i := 0; i < len(WhiteList); i++ {
-		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, " ", "")
-		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, "-", "")
-		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, "(", "")
-		WhiteList[i].Phone = strings.ReplaceAll(WhiteList[i].Phone, ")", "")
-		err := checkPhone(WhiteList[i].Phone)
+func checkPhonesFile(list *[]ListElement) error {
+	for i := 0; i < len(*list); i++ {
+		(*list)[i].Phone = strings.ReplaceAll((*list)[i].Phone, " ", "")
+		(*list)[i].Phone = strings.ReplaceAll((*list)[i].Phone, "-", "")
+		(*list)[i].Phone = strings.ReplaceAll((*list)[i].Phone, "(", "")
+		(*list)[i].Phone = strings.ReplaceAll((*list)[i].Phone, ")", "")
+		err := checkPhone((*list)[i].Phone)
 		if err != nil {
 			return err
 		}
@@ -59,8 +59,9 @@ func AddToWhiteList(elem ListElement) error {
 		return err
 	}
 	WhiteList = append(WhiteList, elem)
-	err := WritePhonesFile()
+	err := WritePhonesFile(&WhiteList)
 	if err != nil {
+		log.Printf("Failed to write file: %q\n", err)
 		return err
 	}
 
@@ -83,8 +84,9 @@ func RemFromWhiteListIdx(idx int) (ListElement, error) {
 	WhiteList[len(WhiteList)-1].AreaNum = ""
 	WhiteList = WhiteList[:len(WhiteList)-1]
 
-	err := WritePhonesFile()
+	err := WritePhonesFile(&WhiteList)
 	if err != nil {
+		log.Printf("Failed to write file: %q\n", err)
 		return elem, err
 	}
 
@@ -161,10 +163,11 @@ func readConfigFile() error {
 	return err
 }
 
-func readPhonesFile() error {
-	log.Println("readPhonesFile")
+func ReadPhonesFile() error {
+	log.Println("ReadPhonesFile")
 
 	var elem ListElement
+	WhiteList = nil
 
 	csvfile, err := os.Open(phonesFilePath)
 	if err != nil {
@@ -197,10 +200,10 @@ func readPhonesFile() error {
 	return err
 }
 
-func WritePhonesFile() error {
+func WritePhonesFile(list *[]ListElement) error {
 	var record [6]string
 
-	err := checkPhonesFile()
+	err := checkPhonesFile(list)
 	if err != nil {
 		return err
 	}
@@ -213,13 +216,13 @@ func WritePhonesFile() error {
 	w := csv.NewWriter(file)
 	defer w.Flush()
 
-	for i := 0; i < len(WhiteList); i++ {
-		record[0] = WhiteList[i].Phone
-		record[1] = WhiteList[i].Surname
-		record[2] = WhiteList[i].Name
-		record[3] = WhiteList[i].Patronymic
-		record[4] = WhiteList[i].Role
-		record[5] = WhiteList[i].AreaNum
+	for i := 0; i < len((*list)); i++ {
+		record[0] = (*list)[i].Phone
+		record[1] = (*list)[i].Surname
+		record[2] = (*list)[i].Name
+		record[3] = (*list)[i].Patronymic
+		record[4] = (*list)[i].Role
+		record[5] = (*list)[i].AreaNum
 
 		err := w.Write(record[:])
 		if err != nil {

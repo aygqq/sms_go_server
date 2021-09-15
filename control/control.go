@@ -250,7 +250,7 @@ func ProcStart() error {
 		return err
 	}
 
-	err = readPhonesFile()
+	err = ReadPhonesFile()
 	if err != nil {
 		log.Printf("Failed to read phones file: %q\n", err)
 		FlagControlWaitResp = true
@@ -259,7 +259,7 @@ func ProcStart() error {
 		return err
 	}
 
-	err = checkPhonesFile()
+	err = checkPhonesFile(&WhiteList)
 	if err != nil {
 		log.Printf("Failed to read file: %q\n", err)
 		FlagControlWaitResp = true
@@ -268,7 +268,7 @@ func ProcStart() error {
 		return err
 	}
 
-	WritePhonesFile()
+	WritePhonesFile(&WhiteList)
 
 	for {
 		if !dbCheckAndCreateGroup(ourGroupName) {

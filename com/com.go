@@ -22,8 +22,6 @@ func Init(f func([]byte)) error {
 	port = porter
 	callback = f
 
-	// Send([]byte("Test string\n"))
-
 	go comRecv()
 	return nil
 }
