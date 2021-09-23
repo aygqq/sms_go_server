@@ -1,0 +1,8 @@
+/sys/kernel/debug/remoteproc/remoteproc0/trace0		Debug log
+/sys/class/remoteproc/remoteproc0			Settimgs for M4
+/usr/local/projects/					Binaries of projects
+/lib/systemd/network/50-wired.network.all		Wired connection settings (DHCP)
+/usr/share/netdata/web					Netdata dir
+/usr/share/netdata/web/simapi				Simapi dir
+gpioset gpiochip0 14=0					Set Green LED
+gpioset gpiochip0 13=0					Set Red LED

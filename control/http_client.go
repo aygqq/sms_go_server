@@ -91,6 +91,7 @@ func HttpTest() {
 
 func regularGroupClear() {
 	dbRemoveCarsByExternalID()
+	// dbRemoveCarsByGroupID()
 }
 
 func dbCheckAndCreateGroup(grName string) bool {
@@ -190,6 +191,26 @@ func dbRemoveCarsByExternalID() bool {
 
 	for totalCount > 10 {
 		cars, totalCount = getCarsByExtID(ourExtID, 0, 10)
+		log.Println(totalCount)
+		for _, car := range cars {
+			oneCar := car.(map[string]interface{})
+			remCar(oneCar["id"].(string))
+		}
+	}
+	return true
+}
+
+func dbRemoveCarsByGroupID() bool {
+	cars, totalCount := getCarsByGroup(ourGroupID, 0, 10)
+	log.Println(totalCount)
+
+	for _, car := range cars {
+		oneCar := car.(map[string]interface{})
+		remCar(oneCar["id"].(string))
+	}
+
+	for totalCount > 10 {
+		cars, totalCount = getCarsByGroup(ourGroupID, 0, 10)
 		log.Println(totalCount)
 		for _, car := range cars {
 			oneCar := car.(map[string]interface{})
@@ -407,9 +428,9 @@ func getCarsByGroup(groupID string, offset int, portion int) ([]interface{}, int
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
-		log.Println("Cars in group " + groupID)
 		totalCount := result["total_count"].(float64)
 		plates := result["plates"].([]interface{})
+		log.Printf("Cars by group id: %s, total_count: %f\r\n", groupID, totalCount)
 		for _, plate := range plates {
 			pl := plate.(map[string]interface{})
 			log.Printf("\t%s, %s\r\n", pl["license_plate_number"], pl["id"])

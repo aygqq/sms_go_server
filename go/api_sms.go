@@ -10,7 +10,6 @@ package swagger
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"../control"
@@ -38,7 +37,7 @@ func GetSmsModemSt(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	str, _ := json.Marshal(resp)
-	fmt.Fprintf(w, string(str))
+	w.Write(str)
 }
 
 func GetSmsMessage(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +65,7 @@ func GetSmsMessage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	str, _ := json.Marshal(resp)
-	fmt.Fprintf(w, string(str))
+	w.Write(str)
 }
 
 func SetSendSms(w http.ResponseWriter, r *http.Request) {
@@ -98,5 +97,5 @@ func SetSendSms(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	str, _ := json.Marshal(resp)
-	fmt.Fprintf(w, string(str))
+	w.Write(str)
 }

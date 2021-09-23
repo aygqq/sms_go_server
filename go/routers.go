@@ -76,6 +76,13 @@ var routes = Routes{
 	},
 
 	Route{
+		"PreSetFilePhones",
+		strings.ToUpper("Options"),
+		"/file/set",
+		PreSetFilePhones,
+	},
+
+	Route{
 		"SetFilePhones",
 		strings.ToUpper("Post"),
 		"/file/set",

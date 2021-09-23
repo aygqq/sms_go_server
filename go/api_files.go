@@ -10,7 +10,6 @@ package swagger
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -52,7 +51,7 @@ func FileAddElem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	str, _ := json.Marshal(resp)
-	fmt.Fprintf(w, string(str))
+	w.Write(str)
 }
 
 func FileRemoveElem(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +86,7 @@ func FileRemoveElem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	str, _ := json.Marshal(resp)
-	fmt.Fprintf(w, string(str))
+	w.Write(str)
 }
 
 func GetFilePhones(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +109,15 @@ func GetFilePhones(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	str, _ := json.Marshal(resp)
-	fmt.Fprintf(w, string(str))
+	w.Write(str)
+}
+
+func PreSetFilePhones(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Max-Age", "86400")
+	w.WriteHeader(http.StatusOK)
 }
 
 func SetFilePhones(w http.ResponseWriter, r *http.Request) {
@@ -139,8 +146,15 @@ func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 	} else {
 		control.ReadPhonesFile()
 	}
-	newList = nil
 
+	for i := 0; i < len(control.WhiteList); i++ {
+		resp.Results[i][0] = control.WhiteList[i].Phone
+		resp.Results[i][1] = control.WhiteList[i].Surname
+		resp.Results[i][2] = control.WhiteList[i].Name
+		resp.Results[i][3] = control.WhiteList[i].Patronymic
+		resp.Results[i][4] = control.WhiteList[i].Role
+		resp.Results[i][5] = control.WhiteList[i].AreaNum
+	}
 	resp.Status = "OK"
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -148,5 +162,5 @@ func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	str, _ := json.Marshal(resp)
-	fmt.Fprintf(w, string(str))
+	w.Write(str)
 }
