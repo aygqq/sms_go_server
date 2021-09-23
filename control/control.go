@@ -272,9 +272,8 @@ func ProcStart() error {
 
 	for {
 		if !dbCheckAndCreateGroup(ourGroupName) {
-			err = errors.New("Unable to create group")
-		}
-		if err == nil {
+			log.Println("Unable to create group")
+		} else {
 			break
 		}
 		time.Sleep(time.Minute)
