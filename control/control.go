@@ -253,21 +253,17 @@ func ProcStart() error {
 	err = ReadPhonesFile()
 	if err != nil {
 		log.Printf("Failed to read phones file: %q\n", err)
-		FlagControlWaitResp = true
-		SendCommand(CMD_PC_READY, true)
-		waitForResponce()
-		return err
+		var elem ListElement
+		elem.Phone = ""
+		elem.Surname = ""
+		elem.Name = ""
+		elem.Patronymic = ""
+		elem.Role = ""
+		elem.AreaNum = ""
+		WhiteList = append(WhiteList, elem)
 	}
 
-	err = checkPhonesFile(&WhiteList)
-	if err != nil {
-		log.Printf("Failed to read file: %q\n", err)
-		FlagControlWaitResp = true
-		SendCommand(CMD_PC_READY, true)
-		waitForResponce()
-		return err
-	}
-
+	checkPhonesFile(&WhiteList)
 	WritePhonesFile(&WhiteList)
 
 	for {

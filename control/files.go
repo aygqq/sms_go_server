@@ -37,6 +37,7 @@ func checkPhone(str string) error {
 }
 
 func checkPhonesFile(list *[]ListElement) error {
+	var ret error = nil
 	for i := 0; i < len(*list); i++ {
 		(*list)[i].Phone = strings.ReplaceAll((*list)[i].Phone, " ", "")
 		(*list)[i].Phone = strings.ReplaceAll((*list)[i].Phone, "-", "")
@@ -44,11 +45,12 @@ func checkPhonesFile(list *[]ListElement) error {
 		(*list)[i].Phone = strings.ReplaceAll((*list)[i].Phone, ")", "")
 		err := checkPhone((*list)[i].Phone)
 		if err != nil {
-			return err
+			(*list)[i].Phone = ""
+			ret = err
 		}
 	}
 
-	return nil
+	return ret
 }
 
 func AddToWhiteList(elem ListElement) error {
@@ -167,7 +169,7 @@ func ReadPhonesFile() error {
 	log.Println("ReadPhonesFile")
 
 	var elem ListElement
-	WhiteList = nil
+	var idx int = 0
 
 	csvfile, err := os.Open(phonesFilePath)
 	if err != nil {
@@ -178,6 +180,7 @@ func ReadPhonesFile() error {
 	// Parse the file
 	r := csv.NewReader(csvfile)
 
+	WhiteList = nil
 	// Iterate through the records
 	for {
 		// Read each record from csv
@@ -195,6 +198,10 @@ func ReadPhonesFile() error {
 		elem.AreaNum = record[5]
 
 		WhiteList = append(WhiteList, elem)
+		idx++
+	}
+	if idx == 0 {
+		err = errors.New("Empty file")
 	}
 
 	return err
