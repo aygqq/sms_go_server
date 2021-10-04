@@ -57,7 +57,7 @@ func AddToWhiteList(elem ListElement) error {
 	// TODO: Check if exists
 	idx := SearchWhiteListByPhone(elem.Phone)
 	if idx != -1 {
-		err := errors.New("Element with yhis phone is already exists")
+		err := errors.New("Element with this phone is already exists")
 		return err
 	}
 	WhiteList = append(WhiteList, elem)
@@ -118,8 +118,6 @@ func SearchWhiteListByPhone(phone string) int {
 func readConfigFile() error {
 	var cfg dbConfig
 
-	log.Println("readConfigFile")
-
 	csvfile, err := os.Open(configFilePath)
 	if err != nil {
 		return err
@@ -133,7 +131,6 @@ func readConfigFile() error {
 	for {
 		// Read each record from csv
 		record, err := r.Read()
-		log.Println(record)
 		if err != nil {
 			break
 		}
@@ -148,6 +145,12 @@ func readConfigFile() error {
 			cfg.login = record[1]
 		} else if record[0] == "password" {
 			cfg.pw = record[1]
+		} else if record[0] == "superuser" {
+			cfg.superuser = record[1]
+		} else if record[0] == "sudo_sms" {
+			if record[1] == "1" {
+				cfg.sudo_sms = true
+			}
 		}
 	}
 
@@ -157,8 +160,10 @@ func readConfigFile() error {
 	// cfg.auth = "module=" + cfg.module + "&login=" + cfg.login + "&password=" + cfg.pwHash
 	cfg.auth = "login=" + cfg.login + "&password=" + cfg.pwHash
 
-	log.Println(cfg.addr)
-	log.Println(cfg.auth)
+	log.Println("Config file has been read")
+	log.Println("Database address: " + cfg.addr)
+	log.Println("Database login: " + cfg.login)
+	log.Printf("Superuser: %s, send flag %t", cfg.superuser, cfg.sudo_sms)
 
 	dbCfg = cfg
 
@@ -166,7 +171,6 @@ func readConfigFile() error {
 }
 
 func ReadPhonesFile() error {
-	log.Println("ReadPhonesFile")
 
 	var elem ListElement
 	var idx int = 0
@@ -185,7 +189,7 @@ func ReadPhonesFile() error {
 	for {
 		// Read each record from csv
 		record, err := r.Read()
-		log.Println(record)
+		// log.Println(record)
 		if err != nil || len(record) != 6 {
 			break
 		}
@@ -201,8 +205,9 @@ func ReadPhonesFile() error {
 		idx++
 	}
 	if idx == 0 {
-		err = errors.New("Empty file")
+		err = errors.New("Empty phones file")
 	}
+	log.Printf("Phones file has been read (%d lines)\r\n", len(WhiteList))
 
 	return err
 }
@@ -236,13 +241,13 @@ func WritePhonesFile(list *[]ListElement) error {
 			return err
 		}
 	}
-	log.Println("Phones file has been written")
+	log.Printf("Phones file has been written (%d lines)\r\n", len(*list))
 
 	return nil
 }
 
 func deleteFile(path string) error {
-	log.Println("Deleting file")
+	log.Println("Deleting file " + path)
 
 	return os.Remove(path)
 }

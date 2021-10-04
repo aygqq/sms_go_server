@@ -36,7 +36,7 @@ var FlagControlWaitResp bool = false
 
 var dbClearHour int = 4
 
-var blinkMillis time.Duration = 50
+var blinkMillis time.Duration = 75
 var ErrorSt ErrorStates
 var prevErr ErrorStates
 
@@ -50,12 +50,11 @@ func waitForResponce() error {
 		if read == 0 {
 			err = errors.New("M4: Wrong response received")
 		}
-		ErrorSt.connM4 = false
+		SetErrorState(&ErrorSt.connM4, false)
 		// log.Printf("Chanel recv %d\n", read)
 	case <-time.After(2 * time.Second):
-		log.Println("M4: No response received")
 		err = errors.New("M4: No response received")
-		ErrorSt.connM4 = true
+		SetErrorState(&ErrorSt.connM4, true)
 	}
 
 	FlagControlWaitResp = false
@@ -92,6 +91,30 @@ func callAt(hour, min, sec int, f func()) error {
 	}()
 
 	return nil
+}
+
+func SetErrorState(curErr *bool, state bool) {
+	*curErr = state
+	if ErrorSt.connGsm && !prevErr.connGsm {
+		log.Println("Set Error connection GSM")
+	} else if !ErrorSt.connGsm && prevErr.connGsm {
+		log.Println("Unset Error connection GSM")
+	}
+	prevErr.connGsm = ErrorSt.connGsm
+
+	if ErrorSt.connM4 && !prevErr.connM4 {
+		log.Println("Set Error connection M4")
+	} else if !ErrorSt.connM4 && prevErr.connM4 {
+		log.Println("Unset Error connection M4")
+	}
+	prevErr.connM4 = ErrorSt.connM4
+
+	if ErrorSt.connBase && !prevErr.connBase {
+		log.Println("Set Error Database")
+	} else if !ErrorSt.connBase && prevErr.connBase {
+		log.Println("Unset Error Database")
+	}
+	prevErr.connBase = ErrorSt.connBase
 }
 
 func setLedRed(state bool) {
@@ -133,6 +156,12 @@ func blinkRedLedOnce() time.Duration {
 func blinkLedRed() {
 	var delayMs time.Duration = 1000
 	for {
+		if ErrorSt.Global {
+			setLedGreen(false)
+			setLedRed(true)
+			time.Sleep(time.Second * 5)
+			continue
+		}
 		if !ErrorSt.connGsm && !ErrorSt.connM4 && !ErrorSt.connBase {
 			setLedGreen(true)
 			setLedRed(false)
@@ -146,10 +175,6 @@ func blinkLedRed() {
 			for i := 0; i < 1; i++ {
 				delayMs -= blinkRedLedOnce()
 			}
-			if prevErr.connGsm != ErrorSt.connGsm {
-				log.Println("Error GSM")
-			}
-			prevErr.connGsm = ErrorSt.connGsm
 		}
 		time.Sleep(time.Millisecond * delayMs)
 
@@ -159,10 +184,6 @@ func blinkLedRed() {
 			for i := 0; i < 2; i++ {
 				delayMs -= blinkRedLedOnce()
 			}
-			if prevErr.connM4 != ErrorSt.connM4 {
-				log.Println("Error M4")
-			}
-			prevErr.connM4 = ErrorSt.connM4
 		}
 		time.Sleep(time.Millisecond * delayMs)
 
@@ -172,10 +193,6 @@ func blinkLedRed() {
 			for i := 0; i < 3; i++ {
 				delayMs -= blinkRedLedOnce()
 			}
-			if prevErr.connBase != ErrorSt.connBase {
-				log.Println("Error Database")
-			}
-			prevErr.connBase = ErrorSt.connBase
 		}
 		time.Sleep(time.Millisecond * delayMs)
 
@@ -190,11 +207,21 @@ func CheckModemState() {
 		waitForResponce()
 
 		if ModemSt.Status != 1 && ModemSt.Status != 5 {
-			ErrorSt.connGsm = true
+			SetErrorState(&ErrorSt.connGsm, true)
 		} else {
-			ErrorSt.connGsm = false
+			SetErrorState(&ErrorSt.connGsm, false)
 		}
-		time.Sleep(time.Second * 20)
+		time.Sleep(time.Second * 30)
+	}
+}
+
+func SuperuserInform(text string) {
+	var msg SmsMessage
+
+	if dbCfg.sudo_sms {
+		msg.Phone = dbCfg.superuser
+		msg.Message = text
+		SendSmsMessage(&msg)
 	}
 }
 
@@ -202,7 +229,11 @@ func procRecvSms(sms SmsMessage) {
 	var answer SmsMessage
 	answer.Phone = sms.Phone
 
-	log.Printf("Message from %s, content: %s", sms.Phone, sms.Message)
+	log.Printf("SMS message from %s, content: %s", sms.Phone, sms.Message)
+	if ErrorSt.Global {
+		log.Println("Can't process message because of init error!")
+		return
+	}
 
 	idx := SearchWhiteListByPhone(sms.Phone)
 	if idx < 0 {
@@ -244,9 +275,6 @@ func ProcStart() error {
 	err := readConfigFile()
 	if err != nil {
 		log.Printf("Failed to read config file: %q\n", err)
-		FlagControlWaitResp = true
-		SendCommand(CMD_PC_READY, true)
-		waitForResponce()
 		return err
 	}
 
@@ -267,27 +295,23 @@ func ProcStart() error {
 	WritePhonesFile(&WhiteList)
 
 	for {
-		if !dbCheckAndCreateGroup(ourGroupName) {
-			log.Println("Unable to create group")
-		} else {
+		if dbCheckAndCreateGroup(ourGroupName) {
 			break
 		}
+		break
 		time.Sleep(time.Minute)
 	}
 
 	err = callAt(dbClearHour, 0, 0, regularGroupClear)
 	if err != nil {
-		FlagControlWaitResp = true
-		SendCommand(CMD_PC_READY, true)
-		waitForResponce()
 		return err
 	}
 
-	FlagControlWaitResp = true
-	SendCommand(CMD_PC_READY, true)
-	if err = waitForResponce(); err != nil {
-		return err
-	}
+	// FlagControlWaitResp = true
+	// SendCommand(CMD_PC_READY, true)
+	// if err = waitForResponce(); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }

@@ -53,4 +53,5 @@ type ErrorStates struct {
 	connGsm  bool
 	connM4   bool
 	connBase bool
+	Global   bool
 }

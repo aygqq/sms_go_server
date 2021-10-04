@@ -37,17 +37,25 @@ func main() {
 		Filename:   "output.log",
 		MaxSize:    1,  // megabytes after which new file is created
 		MaxBackups: 40, // number of backups
-		MaxAge:     31, // days
+		MaxAge:     60, // days
 	})
 
-	log.Printf("Hello programm")
+	log.Printf("Programm starts here")
 
 	// control.HttpTest()
 
 	time.Sleep(time.Second)
 	control.InitProtocol()
 
-	control.ProcStart()
+	err := control.ProcStart()
+	if err != nil {
+		control.ErrorSt.Global = true
+		log.Println("GLOBAL ERROR")
+		control.SuperuserInform("Ошибка при инициализации устройства.")
+	} else {
+		control.ErrorSt.Global = false
+		control.SuperuserInform("Устройство запущено.")
+	}
 
 	log.Printf("Server started")
 	router := sw.NewRouter()

@@ -3,6 +3,7 @@ package control
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,10 +12,12 @@ import (
 )
 
 type dbConfig struct {
-	module string
-	login  string
-	pw     string
-	pwHash string
+	module    string
+	login     string
+	pw        string
+	pwHash    string
+	superuser string
+	sudo_sms  bool
 
 	ip   string
 	port string
@@ -90,13 +93,25 @@ func HttpTest() {
 */
 
 func regularGroupClear() {
-	dbRemoveCarsByExternalID()
-	// dbRemoveCarsByGroupID()
+	// dbRemoveCarsByExternalID()
+	dbRemoveCarsByGroupID()
 }
 
 func dbCheckAndCreateGroup(grName string) bool {
 	ourGroupID = ""
-	var groups []interface{} = getCarGroups()
+	var groups []interface{}
+
+	log.Println("Trying to check or create group: " + grName)
+	err, groups := getCarGroups()
+	if err != nil {
+		log.Printf("Failed to add group, %s\r\n", err)
+		return false
+	}
+
+	for _, group := range groups {
+		gr := group.(map[string]interface{})
+		log.Printf("\t%s:, barrier %t", gr["name"], gr["open_barrier"])
+	}
 
 	for _, group := range groups {
 		gr := group.(map[string]interface{})
@@ -107,26 +122,32 @@ func dbCheckAndCreateGroup(grName string) bool {
 		}
 	}
 
-	ourGroupID = addCarGroup(true, grName)
-
-	if ourGroupID == "" {
-		log.Println("Unable to add group")
+	err, ourGroupID := addCarGroup(true, grName)
+	if err != nil {
+		log.Printf("Failed to add group, %s\r\n", err)
 		return false
 	} else {
-		log.Println("Group successfully added")
+		log.Printf("Group successfully added: %s, %s\r\n", grName, ourGroupID)
 		return true
 	}
 }
 
 func dbSearchAndRemoveGroup(grName string) bool {
 	ourGroupID = ""
-	var groups []interface{} = getCarGroups()
+	var groups []interface{}
+
+	log.Println("Trying to remove group: " + grName)
+	err, groups := getCarGroups()
+	if err != nil {
+		log.Printf("Failed to remove group, %s\r\n", err)
+		return false
+	}
 
 	for _, group := range groups {
 		gr := group.(map[string]interface{})
+		log.Printf("\t%s:, barrier %t", gr["name"], gr["open_barrier"])
 		if gr["name"] == grName {
 			ourGroupID = gr["id"].(string)
-			log.Println("Group is exists")
 		}
 	}
 
@@ -135,17 +156,26 @@ func dbSearchAndRemoveGroup(grName string) bool {
 		return true
 	}
 
-	if remCarGroup(ourGroupID) {
-		log.Println("Group successfully removed")
+	err = remCarGroup(ourGroupID)
+	if err == nil {
+		log.Printf("Group removed: %s, %s\r\n", grName, ourGroupID)
 		return true
 	} else {
-		log.Println("Unable to remove group")
+		log.Printf("Failed to remove group, %s\r\n", err)
 		return false
 	}
 }
 
 func dbSearchAndAddCar(user ListElement, nPlate string) int {
-	var plates []interface{} = getCarsByPlate(nPlate)
+	var plates []interface{}
+
+	log.Printf("Trying to add car %s to group %s\r\n", nPlate, ourGroupName)
+
+	err, plates := getCarsByPlate(nPlate)
+	if err != nil {
+		log.Printf("Failed to get car by plate: %s\r\n", err)
+		return 0
+	}
 
 	if len(plates) > 0 {
 		log.Println("Car is already in database")
@@ -160,127 +190,105 @@ func dbSearchAndAddCar(user ListElement, nPlate string) int {
 	// 	}
 	// }
 
-	if addCarToGroup(user, nPlate, ourExtID, ourGroupID) {
-		log.Printf("Car %d successfully added\n", carNewIdx)
-		carNewIdx++
+	err = addCarToGroup(user, nPlate, ourExtID, ourGroupID)
+	if err == nil {
+		log.Printf("Car added: %s", nPlate)
 		return 1
+	} else {
+		log.Printf("Failed to add car to group: %s\r\n", err)
+		return 0
 	}
-	log.Println("Unable to add car")
-	return 0
-}
-
-// Debug func
-func dbRemoveAllCars() bool {
-	cars := getAllCars()
-
-	for _, car := range cars {
-		oneCar := car.(map[string]interface{})
-		remCar(oneCar["id"].(string))
-	}
-	return true
 }
 
 func dbRemoveCarsByExternalID() bool {
-	cars, totalCount := getCarsByExtID(ourExtID, 0, 10)
-	log.Println(totalCount)
+	var res bool = true
+	var totalCount int = 11
 
-	for _, car := range cars {
-		oneCar := car.(map[string]interface{})
-		remCar(oneCar["id"].(string))
-	}
+	log.Printf("Trying to remove all cars by extID %s\r\n", ourExtID)
 
 	for totalCount > 10 {
-		cars, totalCount = getCarsByExtID(ourExtID, 0, 10)
-		log.Println(totalCount)
+		err, cars, totalCount := getCarsByExtID(ourExtID, 0, 10)
+		if err != nil {
+			log.Printf("Failed to get cars by extID: %s\r\n", err)
+		}
+
+		log.Printf("There are %d cars to remove\r\n", totalCount)
 		for _, car := range cars {
 			oneCar := car.(map[string]interface{})
-			remCar(oneCar["id"].(string))
+			err = remCar(oneCar["id"].(string))
+			if err == nil {
+				log.Printf("Car removed: %s\r\n", oneCar["license_plate_number"])
+			} else {
+				res = false
+				log.Printf("Car %s not removed: %s\r\n", oneCar["license_plate_number"], err)
+			}
 		}
 	}
-	return true
+	return res
 }
 
 func dbRemoveCarsByGroupID() bool {
-	cars, totalCount := getCarsByGroup(ourGroupID, 0, 10)
-	log.Println(totalCount)
+	var res bool = true
+	var totalCount int = 11
 
-	for _, car := range cars {
-		oneCar := car.(map[string]interface{})
-		remCar(oneCar["id"].(string))
-	}
+	log.Printf("Trying to remove all cars from group %s\r\n", ourGroupName)
 
 	for totalCount > 10 {
-		cars, totalCount = getCarsByGroup(ourGroupID, 0, 10)
-		log.Println(totalCount)
+		err, cars, totalCount := getCarsByGroup(ourGroupID, 0, 10)
+		if err != nil {
+			log.Printf("Failed to get cars by group: %s\r\n", err)
+		}
+
+		log.Printf("There are %d cars to remove\r\n", totalCount)
 		for _, car := range cars {
 			oneCar := car.(map[string]interface{})
-			remCar(oneCar["id"].(string))
+			err = remCar(oneCar["id"].(string))
+			if err == nil {
+				log.Printf("Car removed: %s\r\n", oneCar["license_plate_number"])
+			} else {
+				res = false
+				log.Printf("Car %s not removed: %s\r\n", oneCar["license_plate_number"], err)
+			}
 		}
 	}
-	return true
-}
-
-// Debug func
-func dbGetCarsFromGroup() bool {
-	var offset int = 0
-	var totalCount int = 10
-
-	for totalCount > offset {
-		_, totalCount = getCarsByGroup(ourGroupID, offset, 10)
-		offset += 10
-	}
-	return true
-}
-
-// Debug func
-func dbGetCarsByExtID() bool {
-	var offset int = 0
-	var totalCount int = 10
-
-	for totalCount > offset {
-		_, totalCount = getCarsByExtID(ourExtID, offset, 10)
-		offset += 10
-	}
-	return true
+	return res
 }
 
 // Not in use yet
 func getCarConfig() {
 	resp, err := http.Get(dbCfg.addr + "/api/carconfig?" + dbCfg.auth)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
+		SetErrorState(&ErrorSt.connBase, true)
+		log.Printf("Bad request, err: %s\r\n", err)
 		return
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
+		SetErrorState(&ErrorSt.connBase, true)
+		log.Printf("Bad request, err: %s\r\n", err)
 		return
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	log.Println(resp.Status)
 	log.Println(string(body))
 	log.Println()
 }
 
-func getCarGroups() []interface{} {
+func getCarGroups() (error, []interface{}) {
 	resp, err := http.Get(dbCfg.addr + "/api/cars-groups?offset=0&portion=10&" + dbCfg.auth)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 
@@ -288,18 +296,14 @@ func getCarGroups() []interface{} {
 
 	if resp.Status == "200 OK" {
 		groups := result["groups"].([]interface{})
-		for _, group := range groups {
-			gr := group.(map[string]interface{})
-			log.Printf("\t%s: id %s, barrier %t", gr["name"], gr["id"], gr["open_barrier"])
-		}
-		return groups
+		return nil, groups
 	} else {
-		log.Println(result["ErrorMessage"])
-		return nil
+		err = errors.New(result["ErrorMessage"].(string))
+		return err, nil
 	}
 }
 
-func addCarGroup(openBar bool, name string) string {
+func addCarGroup(openBar bool, name string) (error, string) {
 	message := map[string]interface{}{
 		"external_id":  ourExtID,
 		"name":         name,
@@ -310,214 +314,149 @@ func addCarGroup(openBar bool, name string) string {
 
 	bytesRepresentation, err := json.Marshal(message)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return ""
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, ""
 	}
 
 	resp, err := http.Post(dbCfg.addr+"/api/cars-groups?"+dbCfg.auth, "application/json", bytes.NewBuffer(bytesRepresentation))
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return ""
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, ""
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 
 	json.NewDecoder(resp.Body).Decode(&result)
 
 	if resp.Status == "200 OK" {
-		log.Printf("Group added: %s, id %s\r\n", result["name"], result["id"])
-		return result["id"].(string)
+		return nil, result["id"].(string)
 	} else {
-		log.Println(result["ErrorMessage"])
-		return ""
+		err = errors.New(result["ErrorMessage"].(string))
+		return err, ""
 	}
 }
 
-func remCarGroup(groupID string) bool {
+func remCarGroup(groupID string) error {
 	req, err := http.NewRequest(http.MethodDelete, dbCfg.addr+"/api/cars-groups/"+groupID+"?"+dbCfg.auth, nil)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return false
+		SetErrorState(&ErrorSt.connBase, true)
+		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return false
+		SetErrorState(&ErrorSt.connBase, true)
+		return err
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
-		log.Printf("Group removed: id %s\r\n", groupID)
-		return true
+		return nil
 	} else {
-		log.Println(result["ErrorMessage"])
-		return false
+		err = errors.New(result["ErrorMessage"].(string))
+		return err
 	}
 }
 
-// Debug func
-func getAllCars() []interface{} {
-	resp, err := http.Get(dbCfg.addr + "/api/cars?offset=0&portion=50&" + dbCfg.auth)
-	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil
-	}
-	ErrorSt.connBase = false
-
-	var result map[string]interface{}
-
-	json.Unmarshal(body, &result)
-	// log.Println(result)
-
-	if resp.Status == "200 OK" {
-		log.Println("All cars")
-		plates := result["plates"].([]interface{})
-		for _, plate := range plates {
-			pl := plate.(map[string]interface{})
-			log.Printf("\t%s, %s, %s\r\n", pl["license_plate_number"], pl["id"], pl["external_id"])
-		}
-		return plates
-	} else {
-		log.Println(result["ErrorMessage"])
-		return nil
-	}
-}
-
-// Not in use yet
-func getCarsByGroup(groupID string, offset int, portion int) ([]interface{}, int) {
+func getCarsByGroup(groupID string, offset int, portion int) (error, []interface{}, int) {
 	filter := "filter=group_id='" + groupID + "'&"
 	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)
 	resp, err := http.Get(dbCfg.addr + "/api/cars?" + count + filter + dbCfg.auth)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil, 0
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil, 0
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil, 0
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil, 0
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 
-	// json.NewDecoder(resp.Body).Decode(&result)
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
 		totalCount := result["total_count"].(float64)
 		plates := result["plates"].([]interface{})
-		log.Printf("Cars by group id: %s, total_count: %f\r\n", groupID, totalCount)
-		for _, plate := range plates {
-			pl := plate.(map[string]interface{})
-			log.Printf("\t%s, %s\r\n", pl["license_plate_number"], pl["id"])
-		}
-		return plates, int(totalCount)
+		return nil, plates, int(totalCount)
 	} else {
-		log.Println(result["ErrorMessage"])
-		return nil, 0
+		err = errors.New(result["ErrorMessage"].(string))
+		return err, nil, 0
 	}
 }
 
-func getCarsByExtID(extID string, offset int, portion int) ([]interface{}, int) {
+// Not in use yet
+func getCarsByExtID(extID string, offset int, portion int) (error, []interface{}, int) {
 	filter := "filter=external_id='" + extID + "'&"
 	count := fmt.Sprintf("offset=%d&portion=%d&", offset, portion)
 	resp, err := http.Get(dbCfg.addr + "/api/cars?" + count + filter + dbCfg.auth)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil, 0
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil, 0
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil, 0
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil, 0
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 
-	// json.NewDecoder(resp.Body).Decode(&result)
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
 		totalCount := result["total_count"].(float64)
 		plates := result["plates"].([]interface{})
-		log.Printf("Cars by external id: %s, total_count: %f\r\n", extID, totalCount)
-		for _, plate := range plates {
-			pl := plate.(map[string]interface{})
-			log.Printf("\t%s, %s\r\n", pl["license_plate_number"], pl["id"])
-		}
-		return plates, int(totalCount)
+		return nil, plates, int(totalCount)
 	} else {
-		log.Println(result["ErrorMessage"])
-		return nil, 0
+		err = errors.New(result["ErrorMessage"].(string))
+		return err, nil, 0
 	}
 }
 
-func getCarsByPlate(nPlate string) []interface{} {
+func getCarsByPlate(nPlate string) (error, []interface{}) {
 	filter := "filter=license_plate_number='" + url.QueryEscape(nPlate) + "'&"
 	req, err := http.NewRequest(http.MethodGet, dbCfg.addr+"/api/cars?offset=0&portion=50&"+filter+dbCfg.auth, nil)
 	req.Header.Add("Accept-Charset", "utf-8")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return nil
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, nil
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
-		// log.Println("Cars by plate " + nPlate)
 		plates := result["plates"].([]interface{})
-		// for _, plate := range plates {
-		// 	pl := plate.(map[string]interface{})
-		// 	log.Printf("%s, %s, %s\r\n", pl["license_plate_number"], pl["id"], pl["external_id"])
-		// }
-		return plates
+		return nil, plates
 	} else {
-		log.Println(result["ErrorMessage"])
-		return nil
+		err = errors.New(result["ErrorMessage"].(string))
+		return err, nil
 	}
 }
 
-func addCarToGroup(user ListElement, nPlate string, extID string, groupID string) bool {
+func addCarToGroup(user ListElement, nPlate string, extID string, groupID string) error {
 	message := map[string]interface{}{
 		"owner": map[string]string{
 			"first_name":  user.Name,
@@ -536,59 +475,53 @@ func addCarToGroup(user ListElement, nPlate string, extID string, groupID string
 
 	bytesRepresentation, err := json.Marshal(message)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return false
+		SetErrorState(&ErrorSt.connBase, true)
+		return err
 	}
 
 	resp, err := http.Post(dbCfg.addr+"/api/cars?"+dbCfg.auth, "application/json", bytes.NewBuffer(bytesRepresentation))
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return false
+		SetErrorState(&ErrorSt.connBase, true)
+		return err
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 
 	json.NewDecoder(resp.Body).Decode(&result)
 
 	if resp.Status == "200 OK" {
-		log.Printf("Car added: %s, %s", result["license_plate_number"], result["id"])
-		return true
+		return nil
 	} else {
-		log.Println(result["ErrorMessage"])
-		return false
+		err = errors.New(result["ErrorMessage"].(string))
+		return err
 	}
 }
 
-func remCar(carID string) bool {
+func remCar(carID string) error {
 	req, err := http.NewRequest(http.MethodDelete, dbCfg.addr+"/api/cars/"+carID+"?"+dbCfg.auth, nil)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return false
+		SetErrorState(&ErrorSt.connBase, true)
+		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		ErrorSt.connBase = true
-		log.Println(err)
-		return false
+		SetErrorState(&ErrorSt.connBase, true)
+		return err
 	}
-	ErrorSt.connBase = false
+	SetErrorState(&ErrorSt.connBase, false)
 
 	var result map[string]interface{}
 
 	json.Unmarshal(body, &result)
 
 	if resp.Status == "200 OK" {
-		log.Printf("Car removed: id %s\r\n", carID)
-		return true
+		return nil
 	} else {
-		log.Println(result["ErrorMessage"])
-		return false
+		err = errors.New(result["ErrorMessage"].(string))
+		return err
 	}
 }

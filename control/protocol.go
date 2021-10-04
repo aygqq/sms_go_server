@@ -18,8 +18,6 @@ var table *crc16.Table
 
 // InitProtocol - Init function
 func InitProtocol() {
-	log.Printf("Init protocol\n")
-
 	for {
 		err := com.Init(recieveHandler)
 		if err == nil {
@@ -35,7 +33,6 @@ func InitProtocol() {
 }
 
 func SendCommand(cmdType uint8, state bool) {
-	// log.Printf("SendCommand\n")
 	var buf [7]byte
 
 	buf[0] = cmdType
@@ -54,7 +51,6 @@ func SendCommand(cmdType uint8, state bool) {
 }
 
 func SendShort(cmdType uint8, data byte) {
-	// log.Printf("SendShort\n")
 	var buf [7]byte
 
 	buf[0] = cmdType
@@ -71,7 +67,6 @@ func SendShort(cmdType uint8, data byte) {
 }
 
 func SendData(cmdType uint8, data []byte) {
-	// log.Printf("SendData\n")
 	var dataLen = len(data)
 
 	var buf = make([]byte, dataLen+6)
@@ -122,6 +117,8 @@ func SendSmsMessage(sms *SmsMessage) {
 	copy(buf[ptr:], sms.Message)
 
 	SendData(CMD_SEND_SMS, buf[:])
+
+	log.Printf("SMS send to %s, content: %s\r\n", sms.Phone, sms.Message)
 }
 
 func recieveHandler(data []byte) {
