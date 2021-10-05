@@ -120,7 +120,7 @@ func waitForResponce(secs int) (string, bool) {
 			status = "EXECUTE_ERROR"
 			ret = false
 		}
-		log.Printf("Chanel recv %d\n", read)
+		// log.Printf("Chanel recv %d\n", read)
 		// control.ErrorSt.connM4 = false
 		// status = "OK"
 		// ret = true

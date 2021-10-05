@@ -119,29 +119,17 @@ func SetErrorState(curErr *bool, state bool) {
 
 func setLedRed(state bool) {
 	if state {
-		err := exec.Command("gpioset", "gpiochip0", "13=0").Run()
-		if err != nil {
-			log.Println(err)
-		}
+		exec.Command("gpioset", "gpiochip0", "13=0").Run()
 	} else {
-		err := exec.Command("gpioset", "gpiochip0", "13=1").Run()
-		if err != nil {
-			log.Println(err)
-		}
+		exec.Command("gpioset", "gpiochip0", "13=1").Run()
 	}
 }
 
 func setLedGreen(state bool) {
 	if state {
-		err := exec.Command("gpioset", "gpiochip0", "14=0").Run()
-		if err != nil {
-			log.Println(err)
-		}
+		exec.Command("gpioset", "gpiochip0", "14=0").Run()
 	} else {
-		err := exec.Command("gpioset", "gpiochip0", "14=1").Run()
-		if err != nil {
-			log.Println(err)
-		}
+		exec.Command("gpioset", "gpiochip0", "14=1").Run()
 	}
 }
 
@@ -225,6 +213,25 @@ func SuperuserInform(text string) {
 	}
 }
 
+func updateTime() {
+	err, macroscopTime := getMacroscopTime()
+	if err != nil {
+		return
+	}
+	// log.Println("pcDateTime " + macroscopTime)
+
+	pcDateTime := strings.Split(macroscopTime, " ")
+	pcDate := strings.Split(pcDateTime[0], ".")
+
+	mpDate := pcDate[2] + "-" + pcDate[1] + "-" + pcDate[0]
+	mpTime := pcDateTime[1]
+
+	mpDateTime := mpDate + " " + mpTime
+	// log.Println("mpDateTime " + mpDateTime)
+
+	procSetTime(mpDateTime)
+}
+
 func procRecvSms(sms SmsMessage) {
 	var answer SmsMessage
 	answer.Phone = sms.Phone
@@ -245,15 +252,15 @@ func procRecvSms(sms SmsMessage) {
 	nPlate := sms.Message[0:len(sms.Message)]
 	nPlate = strings.Trim(nPlate, " ")
 	nPlate = strings.ReplaceAll(nPlate, " ", "")
-	log.Println("Car number is: ", nPlate)
 
 	nPlate, err := nPlateCheckAndFormat(nPlate)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Failed to parse car plate: %s", err)
 		answer.Message = "Ошибка. Неверный формат номера"
 		SendSmsMessage(&answer)
 		return
 	}
+	log.Println("Parsing complete: ", nPlate)
 
 	res := dbSearchAndAddCar(WhiteList[idx], nPlate)
 	if res == 1 {
@@ -271,6 +278,8 @@ func ProcStart() error {
 
 	go CheckModemState()
 	time.Sleep(time.Second)
+
+	updateTime()
 
 	err := readConfigFile()
 	if err != nil {
@@ -299,7 +308,7 @@ func ProcStart() error {
 			break
 		}
 		break
-		time.Sleep(time.Minute)
+		// time.Sleep(time.Minute)
 	}
 
 	err = callAt(dbClearHour, 0, 0, regularGroupClear)
@@ -316,9 +325,30 @@ func ProcStart() error {
 	return nil
 }
 
-func procShutdown() {
-	err := exec.Command("/bin/sh", "shutdown.sh").Run()
+func procSetTime(time string) error {
+	cmd := exec.Command("timedatectl", "set-time", time)
+	output, err := cmd.Output()
+
 	if err != nil {
-		log.Println(err)
+		log.Printf("Failed to set time: %s\r\n", output)
+		return err
+	}
+
+	return nil
+}
+
+func procRestart() {
+	log.Println("Restart")
+	err := exec.Command("shutdown", "-r", "now").Run()
+	if err != nil {
+		log.Println("Failed to send restart command", err)
+	}
+}
+
+func procShutdown() {
+	log.Println("Shutdown")
+	err := exec.Command("shutdown", "now").Run()
+	if err != nil {
+		log.Println("Failed to send shutdown command", err)
 	}
 }

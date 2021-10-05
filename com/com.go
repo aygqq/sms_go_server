@@ -16,7 +16,7 @@ func Init(f func([]byte)) error {
 	// устанавливаем соединение
 	porter, err := sio.Open("/dev/ttyRPMSG0", syscall.B115200)
 	if err != nil {
-		log.Println(err)
+		log.Println("COM Open error ", err)
 		return err
 	}
 	port = porter
@@ -32,7 +32,7 @@ func Send(data []byte) {
 	// отправляем данные
 	_, err = port.Write(data)
 	if err != nil {
-		log.Println(err)
+		log.Println("COM Send error ", err)
 		return
 	}
 }
@@ -44,7 +44,7 @@ func comRecv() {
 		// получаем данные
 		reply, err := reader.ReadBytes(0xFE)
 		if err != nil {
-			log.Println(err)
+			log.Println("COM Recv error ", err)
 			continue
 		}
 		callback(reply)

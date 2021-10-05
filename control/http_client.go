@@ -104,7 +104,7 @@ func dbCheckAndCreateGroup(grName string) bool {
 	log.Println("Trying to check or create group: " + grName)
 	err, groups := getCarGroups()
 	if err != nil {
-		log.Printf("Failed to add group, %s\r\n", err)
+		log.Printf("Failed to get groups, %s\r\n", err)
 		return false
 	}
 
@@ -195,7 +195,7 @@ func dbSearchAndAddCar(user ListElement, nPlate string) int {
 		log.Printf("Car added: %s", nPlate)
 		return 1
 	} else {
-		log.Printf("Failed to add car to group: %s\r\n", err)
+		log.Printf("Failed to add car: %s\r\n", err)
 		return 0
 	}
 }
@@ -210,6 +210,7 @@ func dbRemoveCarsByExternalID() bool {
 		err, cars, totalCount := getCarsByExtID(ourExtID, 0, 10)
 		if err != nil {
 			log.Printf("Failed to get cars by extID: %s\r\n", err)
+			return false
 		}
 
 		log.Printf("There are %d cars to remove\r\n", totalCount)
@@ -237,6 +238,7 @@ func dbRemoveCarsByGroupID() bool {
 		err, cars, totalCount := getCarsByGroup(ourGroupID, 0, 10)
 		if err != nil {
 			log.Printf("Failed to get cars by group: %s\r\n", err)
+			return false
 		}
 
 		log.Printf("There are %d cars to remove\r\n", totalCount)
@@ -524,4 +526,29 @@ func remCar(carID string) error {
 		err = errors.New(result["ErrorMessage"].(string))
 		return err
 	}
+}
+
+func getMacroscopTime() (error, string) {
+	// return nil, "22.09.2018 3:33:06"
+	resp, err := http.Get(dbCfg.addr + "/command?type=gettime&" + dbCfg.auth)
+	// resp, err := http.Get(dbCfg.addr + "/command?type=gettime&" + dbCfg.auth + "&responsetype=json")
+	if err != nil {
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, ""
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		SetErrorState(&ErrorSt.connBase, true)
+		return err, ""
+	}
+	SetErrorState(&ErrorSt.connBase, false)
+
+	return nil, string(body)
+
+	// 	var result map[string]interface{}
+	// 	json.Unmarshal(body, &result)
+
+	// 	log.Println(result)
+	// 	return nil, result["time"].(string)
 }

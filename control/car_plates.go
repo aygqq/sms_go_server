@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"unicode"
 )
@@ -57,7 +56,7 @@ func nPlateCheckAndFormat(nPlate string) (string, error) {
 	letters := string(bytes[0:2]) + string(bytes[5:9])
 	numbers := string(bytes[2:5])
 	region := string(bytes[9:numLen])
-	log.Printf("Analyse %s, %s, %s\n", letters, numbers, region)
+	// log.Printf("Analyse %s, %s, %s\n", letters, numbers, region)
 	if !checkIfNumberString(letters, true) {
 		err = errors.New("Wrong nPlate letters")
 		return nPlate, err
@@ -101,7 +100,6 @@ func transliteEnRu(text string) string {
 
 		rr, ok = enRu[string(r)]
 		if ok {
-			// log.Println(rr)
 			output.WriteString(rr)
 		}
 	}
@@ -151,7 +149,7 @@ func isPlateChar(r rune) bool {
 			return true
 		}
 	}
-	log.Printf("Wrong char %x\n", r)
+	// log.Printf("Wrong char %x\n", r)
 	return false
 }
 

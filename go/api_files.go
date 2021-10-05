@@ -92,6 +92,8 @@ func FileRemoveElem(w http.ResponseWriter, r *http.Request) {
 func GetFilePhones(w http.ResponseWriter, r *http.Request) {
 	var resp RespFilephones
 
+	log.Println("Recv HTTP request - get phones file")
+
 	resp.Results = make([][6]string, len(control.WhiteList))
 	for i := 0; i < len(control.WhiteList); i++ {
 		resp.Results[i][0] = control.WhiteList[i].Phone
@@ -103,6 +105,8 @@ func GetFilePhones(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.Status = "OK"
+
+	log.Println("HTTP request complete")
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -123,9 +127,12 @@ func PreSetFilePhones(w http.ResponseWriter, r *http.Request) {
 func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 	var elem control.ListElement
 	var resp RespFilephones
+
+	log.Println("Recv HTTP request - set phones file")
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("Error reading body: %v", err)
+		log.Printf("Error reading request body: %v", err)
 	}
 
 	err = json.Unmarshal(body, &resp.Results)
@@ -142,6 +149,7 @@ func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 	err = control.WritePhonesFile(&newList)
 	if err != nil {
 		log.Printf("Failed to write file: %q\n", err)
+		log.Println("Writing back old file")
 		control.WritePhonesFile(&control.WhiteList)
 	} else {
 		control.ReadPhonesFile()
@@ -156,6 +164,8 @@ func SetFilePhones(w http.ResponseWriter, r *http.Request) {
 		resp.Results[i][5] = control.WhiteList[i].AreaNum
 	}
 	resp.Status = "OK"
+
+	log.Println("HTTP request complete")
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")

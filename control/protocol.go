@@ -18,6 +18,7 @@ var table *crc16.Table
 
 // InitProtocol - Init function
 func InitProtocol() {
+	table = crc16.MakeMyTable(crc16.CRC16_MY)
 	for {
 		err := com.Init(recieveHandler)
 		if err == nil {
@@ -27,9 +28,6 @@ func InitProtocol() {
 	}
 
 	SmsList = list.New()
-
-	//! TODO: Table must be simmilar with PCB's table
-	table = crc16.MakeMyTable(crc16.CRC16_MY)
 }
 
 func SendCommand(cmdType uint8, state bool) {
