@@ -35,13 +35,14 @@ func main() {
 
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   "output.log",
-		MaxSize:    1,  // megabytes after which new file is created
-		MaxBackups: 40, // number of backups
-		MaxAge:     60, // days
+		MaxSize:    1,   // megabytes after which new file is created
+		MaxBackups: 200, // number of backups
+		MaxAge:     60,  // days
 	})
 
 	log.Printf("Programm starts here")
 
+	// control.UpdateTime()
 	// control.HttpTest()
 
 	time.Sleep(time.Second)
@@ -50,7 +51,7 @@ func main() {
 	err := control.ProcStart()
 	if err != nil {
 		control.ErrorSt.Global = true
-		log.Println("GLOBAL ERROR")
+		log.Println("INITIALIZATION ERROR")
 		control.SuperuserInform("Ошибка при инициализации устройства.")
 	} else {
 		control.ErrorSt.Global = false

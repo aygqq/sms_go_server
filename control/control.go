@@ -39,6 +39,8 @@ var dbClearHour int = 4
 var blinkMillis time.Duration = 75
 var ErrorSt ErrorStates
 var prevErr ErrorStates
+var errCount int = 0
+var sysInited bool = false
 
 func waitForResponce() error {
 	var err error
@@ -141,6 +143,7 @@ func blinkRedLedOnce() time.Duration {
 	return blinkMillis * 4
 }
 
+// period is 5s
 func blinkLedRed() {
 	var delayMs time.Duration = 1000
 	for {
@@ -185,6 +188,17 @@ func blinkLedRed() {
 		time.Sleep(time.Millisecond * delayMs)
 
 		time.Sleep(time.Second * 2)
+
+		if !ErrorSt.connGsm && !ErrorSt.connM4 {
+			errCount = 0
+		} else {
+			errCount++
+		}
+
+		if sysInited && errCount > 72 {
+			log.Printf("Some error is active about 6 minutes (%t, %t, %t)", ErrorSt.connGsm, ErrorSt.connM4, ErrorSt.connBase)
+			procRestart()
+		}
 	}
 }
 
@@ -205,6 +219,18 @@ func CheckModemState() {
 
 func SuperuserInform(text string) {
 	var msg SmsMessage
+	var cnt int = 0
+
+	for cnt < 12 {
+		if ModemSt.Status != 1 && ModemSt.Status != 5 {
+			time.Sleep(10 * time.Second)
+			cnt++
+			continue
+		} else {
+			break
+		}
+	}
+	time.Sleep(5 * time.Second)
 
 	if dbCfg.sudo_sms {
 		msg.Phone = dbCfg.superuser
@@ -213,21 +239,28 @@ func SuperuserInform(text string) {
 	}
 }
 
-func updateTime() {
+func UpdateTime() {
 	err, macroscopTime := getMacroscopTime()
 	if err != nil {
+		log.Println("Failed to get Macroscop time")
 		return
 	}
-	// log.Println("pcDateTime " + macroscopTime)
+	log.Println("Recieved DateTime " + macroscopTime)
 
 	pcDateTime := strings.Split(macroscopTime, " ")
+	if len(pcDateTime) < 2 {
+		return
+	}
 	pcDate := strings.Split(pcDateTime[0], ".")
+	if len(pcDate) < 3 {
+		return
+	}
 
 	mpDate := pcDate[2] + "-" + pcDate[1] + "-" + pcDate[0]
 	mpTime := pcDateTime[1]
 
 	mpDateTime := mpDate + " " + mpTime
-	// log.Println("mpDateTime " + mpDateTime)
+	log.Println("Converted DateTime " + mpDateTime)
 
 	procSetTime(mpDateTime)
 }
@@ -237,8 +270,8 @@ func procRecvSms(sms SmsMessage) {
 	answer.Phone = sms.Phone
 
 	log.Printf("SMS message from %s, content: %s", sms.Phone, sms.Message)
-	if ErrorSt.Global {
-		log.Println("Can't process message because of init error!")
+	if ErrorSt.Global || !sysInited {
+		log.Println("Can't process message. Init not finished or finished with error.")
 		return
 	}
 
@@ -260,8 +293,8 @@ func procRecvSms(sms SmsMessage) {
 		SendSmsMessage(&answer)
 		return
 	}
-	log.Println("Parsing complete: ", nPlate)
 
+	// UpdateTime()
 	res := dbSearchAndAddCar(WhiteList[idx], nPlate)
 	if res == 1 {
 		answer.Message = nPlate + " - Въезд разрешен"
@@ -277,15 +310,14 @@ func ProcStart() error {
 	go blinkLedRed()
 
 	go CheckModemState()
-	time.Sleep(time.Second)
-
-	updateTime()
+	time.Sleep(3 * time.Second)
 
 	err := readConfigFile()
 	if err != nil {
 		log.Printf("Failed to read config file: %q\n", err)
 		return err
 	}
+	UpdateTime()
 
 	err = ReadPhonesFile()
 	if err != nil {
@@ -303,12 +335,16 @@ func ProcStart() error {
 	checkPhonesFile(&WhiteList)
 	WritePhonesFile(&WhiteList)
 
-	for {
+	err = errors.New("Failed to check or create group")
+	for i := 0; i < 5; i++ {
 		if dbCheckAndCreateGroup(ourGroupName) {
+			err = nil
 			break
 		}
-		break
-		// time.Sleep(time.Minute)
+		time.Sleep(time.Minute)
+	}
+	if err != nil {
+		return err
 	}
 
 	err = callAt(dbClearHour, 0, 0, regularGroupClear)
@@ -316,12 +352,13 @@ func ProcStart() error {
 		return err
 	}
 
-	// FlagControlWaitResp = true
-	// SendCommand(CMD_PC_READY, true)
-	// if err = waitForResponce(); err != nil {
-	// 	return err
-	// }
+	FlagControlWaitResp = true
+	SendCommand(CMD_PC_READY, true)
+	if err = waitForResponce(); err != nil {
+		return err
+	}
 
+	sysInited = true
 	return nil
 }
 
@@ -332,13 +369,15 @@ func procSetTime(time string) error {
 	if err != nil {
 		log.Printf("Failed to set time: %s\r\n", output)
 		return err
+	} else {
+		log.Printf("Time set successfull: %s\r\n", time)
 	}
 
 	return nil
 }
 
 func procRestart() {
-	log.Println("Restart")
+	log.Printf("Restart\r\n\r\n")
 	err := exec.Command("shutdown", "-r", "now").Run()
 	if err != nil {
 		log.Println("Failed to send restart command", err)
@@ -346,7 +385,7 @@ func procRestart() {
 }
 
 func procShutdown() {
-	log.Println("Shutdown")
+	log.Printf("Shutdown\r\n\r\n")
 	err := exec.Command("shutdown", "now").Run()
 	if err != nil {
 		log.Println("Failed to send shutdown command", err)

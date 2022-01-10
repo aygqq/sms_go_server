@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type dbConfig struct {
@@ -95,11 +96,12 @@ func HttpTest() {
 func regularGroupClear() {
 	// dbRemoveCarsByExternalID()
 	dbRemoveCarsByGroupID()
+	// time.Sleep(time.Minute)
+	// procRestart()
 }
 
 func dbCheckAndCreateGroup(grName string) bool {
 	ourGroupID = ""
-	var groups []interface{}
 
 	log.Println("Trying to check or create group: " + grName)
 	err, groups := getCarGroups()
@@ -110,31 +112,31 @@ func dbCheckAndCreateGroup(grName string) bool {
 
 	for _, group := range groups {
 		gr := group.(map[string]interface{})
-		log.Printf("\t%s:, barrier %t", gr["name"], gr["open_barrier"])
+		log.Printf("\t%s: id %s, barrier %t", gr["name"], gr["id"], gr["open_barrier"])
 	}
 
 	for _, group := range groups {
 		gr := group.(map[string]interface{})
 		if gr["name"] == grName && gr["open_barrier"] == true {
 			ourGroupID = gr["id"].(string)
-			log.Println("Group is already exists: " + gr["name"].(string))
+			log.Println("Group is already exists: " + gr["name"].(string) + " id: " + gr["id"].(string))
 			return true
 		}
 	}
 
-	err, ourGroupID := addCarGroup(true, grName)
+	err, ourGroupIDNew := addCarGroup(true, grName)
 	if err != nil {
 		log.Printf("Failed to add group, %s\r\n", err)
 		return false
 	} else {
-		log.Printf("Group successfully added: %s, %s\r\n", grName, ourGroupID)
+		log.Printf("Group successfully added: %s, %s\r\n", grName, ourGroupIDNew)
+		ourGroupID = ourGroupIDNew
 		return true
 	}
 }
 
 func dbSearchAndRemoveGroup(grName string) bool {
 	ourGroupID = ""
-	var groups []interface{}
 
 	log.Println("Trying to remove group: " + grName)
 	err, groups := getCarGroups()
@@ -167,9 +169,7 @@ func dbSearchAndRemoveGroup(grName string) bool {
 }
 
 func dbSearchAndAddCar(user ListElement, nPlate string) int {
-	var plates []interface{}
-
-	log.Printf("Trying to add car %s to group %s\r\n", nPlate, ourGroupName)
+	log.Printf("Trying to add car %s to group %s (%s)\r\n", nPlate, ourGroupName, ourGroupID)
 
 	err, plates := getCarsByPlate(nPlate)
 	if err != nil {
@@ -202,18 +202,21 @@ func dbSearchAndAddCar(user ListElement, nPlate string) int {
 
 func dbRemoveCarsByExternalID() bool {
 	var res bool = true
-	var totalCount int = 11
 
 	log.Printf("Trying to remove all cars by extID %s\r\n", ourExtID)
 
-	for totalCount > 10 {
+	for {
 		err, cars, totalCount := getCarsByExtID(ourExtID, 0, 10)
 		if err != nil {
 			log.Printf("Failed to get cars by extID: %s\r\n", err)
 			return false
 		}
-
 		log.Printf("There are %d cars to remove\r\n", totalCount)
+
+		if totalCount == 0 {
+			break
+		}
+
 		for _, car := range cars {
 			oneCar := car.(map[string]interface{})
 			err = remCar(oneCar["id"].(string))
@@ -230,18 +233,21 @@ func dbRemoveCarsByExternalID() bool {
 
 func dbRemoveCarsByGroupID() bool {
 	var res bool = true
-	var totalCount int = 11
 
 	log.Printf("Trying to remove all cars from group %s\r\n", ourGroupName)
 
-	for totalCount > 10 {
+	for {
 		err, cars, totalCount := getCarsByGroup(ourGroupID, 0, 10)
 		if err != nil {
 			log.Printf("Failed to get cars by group: %s\r\n", err)
 			return false
 		}
-
 		log.Printf("There are %d cars to remove\r\n", totalCount)
+
+		if totalCount == 0 {
+			break
+		}
+
 		for _, car := range cars {
 			oneCar := car.(map[string]interface{})
 			err = remCar(oneCar["id"].(string))
@@ -529,26 +535,29 @@ func remCar(carID string) error {
 }
 
 func getMacroscopTime() (error, string) {
-	// return nil, "22.09.2018 3:33:06"
-	resp, err := http.Get(dbCfg.addr + "/command?type=gettime&" + dbCfg.auth)
-	// resp, err := http.Get(dbCfg.addr + "/command?type=gettime&" + dbCfg.auth + "&responsetype=json")
+	// str := dbCfg.addr + "/command?type=gettime&" + dbCfg.auth + "&responsetype=json"
+	// log.Println("Time request ", str)
+	// resp, err := http.Get(dbCfg.addr + "/command?type=gettime&" + dbCfg.auth)
+	resp, err := http.Get(dbCfg.addr + "/command?type=gettime&" + dbCfg.auth + "&responsetype=json")
 	if err != nil {
 		SetErrorState(&ErrorSt.connBase, true)
+		log.Println("GET ERROR ", err)
 		return err, ""
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		SetErrorState(&ErrorSt.connBase, true)
+		log.Println("READ ERROR ", err)
 		return err, ""
 	}
 	SetErrorState(&ErrorSt.connBase, false)
 
-	return nil, string(body)
+	relultParts := strings.Split(string(body), "\"")
+	if len(relultParts) < 3 {
+		err := errors.New("Wrong answer format")
+		return err, ""
+	}
 
-	// 	var result map[string]interface{}
-	// 	json.Unmarshal(body, &result)
-
-	// 	log.Println(result)
-	// 	return nil, result["time"].(string)
+	return nil, relultParts[1]
 }
