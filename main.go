@@ -55,6 +55,7 @@ func main() {
 		control.SuperuserInform("Ошибка при инициализации устройства.")
 	} else {
 		control.ErrorSt.Global = false
+		log.Println("INITIALIZATION SUCCESS")
 		control.SuperuserInform("Устройство запущено.")
 	}
 

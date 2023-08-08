@@ -232,9 +232,13 @@ func SuperuserInform(text string) {
 	}
 	time.Sleep(5 * time.Second)
 
+	tm := time.Now()
+	str_time := tm.Format("2006-01-02 15:04:05")
+
 	if dbCfg.sudo_sms {
 		msg.Phone = dbCfg.superuser
-		msg.Message = text
+		log.Println(text, str_time)
+		msg.Message = text + " " + str_time
 		SendSmsMessage(&msg)
 	}
 }
@@ -266,6 +270,7 @@ func UpdateTime() {
 }
 
 func procRecvSms(sms SmsMessage) {
+	needToAnswer := false
 	var answer SmsMessage
 	answer.Phone = sms.Phone
 
@@ -290,17 +295,25 @@ func procRecvSms(sms SmsMessage) {
 	if err != nil {
 		log.Printf("Failed to parse car plate: %s", err)
 		answer.Message = "Ошибка. Неверный формат номера"
-		SendSmsMessage(&answer)
-		return
+		needToAnswer = true
+	} else {
+		// UpdateTime()
+		res := dbSearchAndAddCar(WhiteList[idx], nPlate)
+		if res == 1 {
+			answer.Message = nPlate + " - Въезд разрешен"
+			needToAnswer = true
+		} else if res == 2 {
+			answer.Message = nPlate + " - Автомобиль уже существует в базе данных"
+			needToAnswer = true
+		}
 	}
 
-	// UpdateTime()
-	res := dbSearchAndAddCar(WhiteList[idx], nPlate)
-	if res == 1 {
-		answer.Message = nPlate + " - Въезд разрешен"
-		SendSmsMessage(&answer)
-	} else if res == 2 {
-		answer.Message = nPlate + " - Автомобиль уже существует в базе данных"
+	if needToAnswer {
+		if answer.Phone == dbCfg.superuser {
+			tm := time.Now()
+			str_time := tm.Format("2006-01-02 15:04:05")
+			answer.Message += " " + str_time
+		}
 		SendSmsMessage(&answer)
 	}
 }
